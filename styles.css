@@ -79,6 +79,7 @@ body {
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 0; /* Important for flex scrolling */
 }
 
 .sidebar {
@@ -215,6 +216,7 @@ body {
     background: white;
     display: flex;
     flex-direction: column;
+    min-height: 0; /* Important for flex scrolling */
 }
 
 .log-viewer {
@@ -222,6 +224,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0; /* Important for flex scrolling */
 }
 
 .log-header {
@@ -296,6 +299,15 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0; /* Important for flex scrolling */
+}
+
+#logViewContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0; /* Important for flex scrolling */
 }
 
 .log-content-header {
@@ -347,6 +359,12 @@ body {
     z-index: 1000;
 }
 
+#logViewContent .floating-actions {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
 .floating-btn {
     width: 50px;
     height: 50px;
@@ -379,15 +397,33 @@ body {
     position: relative;
 }
 
+#logViewContent {
+    position: relative;
+}
+
 .log-text {
-    height: 100%;
+    flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 13px;
     line-height: 1.5;
     background: #f8f9fa;
     color: #2c3e50;
+    min-height: 0; /* Important for flex scrolling */
+    max-height: 100%; /* Ensure it doesn't exceed container */
+}
+
+.log-text pre {
+    margin: 0;
+    padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
 }
 
 .placeholder {

@@ -137,7 +137,7 @@ function startWatching(filePath) {
           // Send notification
           const fileName = path.basename(filePath);
           const notificationMessage = `New log entries detected in ${fileName}`;
-          sendNotification(fileName, notificationMessage);
+          sendNotification(fileName, notificationMessage, filePath);
           
           // Send to renderer process
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -195,8 +195,8 @@ function startWatching(filePath) {
               // Send notification using Electron's built-in notification system
               const fileName = path.basename(filePath);
               const notificationMessage = `New log entries detected in ${fileName}`;
-              
-              sendNotification(fileName, notificationMessage);
+
+              sendNotification(fileName, notificationMessage, filePath);
 
               // Send to renderer process
               if (mainWindow && !mainWindow.isDestroyed()) {
@@ -246,7 +246,7 @@ function stopWatching(filePath) {
   return false;
 }
 
-function sendNotification(fileName, message) {
+function sendNotification(fileName, message, filePath = null) {
   try {
     if (Notification.isSupported()) {
       const notification = new Notification({
@@ -255,14 +255,19 @@ function sendNotification(fileName, message) {
         icon: path.join(__dirname, 'assets', 'icon.png'),
         silent: false
       });
-      
+
       notification.on('click', () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.show();
           mainWindow.focus();
+
+          // If we have a file path, tell the renderer to select that file
+          if (filePath) {
+            mainWindow.webContents.send('select-log-file', filePath);
+          }
         }
       });
-      
+
       notification.show();
       console.log('Notification sent successfully for:', fileName);
     } else {
@@ -383,10 +388,43 @@ ipcMain.handle('get-log-content', (event, filePath, showNewestFirst = true) => {
 });
 
 ipcMain.handle('clear-log-file', (event, filePath) => {
+  console.log('clear-log-file handler called with filePath:', filePath);
+
   try {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.error('File does not exist:', filePath);
+      return { success: false, error: 'File does not exist' };
+    }
+
+    // Check if we can write to the file
+    try {
+      fs.accessSync(filePath, fs.constants.W_OK);
+    } catch (accessError) {
+      console.error('No write permission for file:', filePath, accessError.message);
+      return { success: false, error: 'No write permission for this file' };
+    }
+
+    // Get file stats before clearing
+    const statsBefore = fs.statSync(filePath);
+    console.log('File size before clearing:', statsBefore.size, 'bytes');
+
+    // Clear the file
     fs.writeFileSync(filePath, '');
-    return { success: true, message: 'Log file cleared successfully' };
+
+    // Verify the file was cleared
+    const statsAfter = fs.statSync(filePath);
+    console.log('File size after clearing:', statsAfter.size, 'bytes');
+
+    if (statsAfter.size === 0) {
+      console.log('Log file cleared successfully:', filePath);
+      return { success: true, message: 'Log file cleared successfully' };
+    } else {
+      console.error('File was not properly cleared, size is still:', statsAfter.size);
+      return { success: false, error: 'File was not properly cleared' };
+    }
   } catch (error) {
+    console.error('Error clearing log file:', filePath, error.message);
     return { success: false, error: error.message };
   }
 });

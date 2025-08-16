@@ -44,9 +44,24 @@
 
             <div class="content-area">
                 <div class="log-viewer">
-                                        <div class="log-header">
+                    <!-- Home page header (when no file is selected) -->
+                    <div id="homeHeader" class="log-header">
                         <div class="log-header-left">
-                            <button id="backBtn" class="btn btn-secondary back-btn" style="display: none;">
+                            <h2>Debug Log Watcher</h2>
+                        </div>
+                        <div class="log-actions">
+                            <div class="log-controls">
+                                <button id="testNotificationBtn" class="btn btn-secondary">
+                                    🔔 Test Notification
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Single log view header (when a file is selected) -->
+                    <div id="logViewHeader" class="log-header" style="display: none;">
+                        <div class="log-header-left">
+                            <button id="backBtn" class="btn btn-secondary back-btn">
                                 ← Back
                             </button>
                             <h2 id="currentLogTitle"></h2>
@@ -54,36 +69,24 @@
                         <div class="log-actions">
                             <div class="log-info">
                                 <span id="lineCount" class="line-count">0 lines</span>
-                                <button id="orderToggleBtn" class="btn btn-secondary" disabled>
+                                <button id="orderToggleBtn" class="btn btn-secondary">
                                     ⬇️ Newest First
                                 </button>
                             </div>
                             <div class="log-controls">
-                                <button id="refreshBtn" class="btn btn-secondary" disabled>
+                                <button id="refreshBtn" class="btn btn-secondary">
                                     🔄 Refresh
                                 </button>
-                                <button id="clearBtn" class="btn btn-danger" disabled>
+                                <button id="clearBtn" class="btn btn-danger">
                                     🗑️ Clear
-                                </button>
-                                <button id="testNotificationBtn" class="btn btn-secondary">
-                                    🔔 Test Notification
                                 </button>
                             </div>
                         </div>
                     </div>
                     
                     <div class="log-content">
-                        <div class="log-content-header">
-                            <div class="log-actions-inline">
-                                <button id="clearLogBtn" class="btn btn-danger" disabled>
-                                    🗑️ Clear Log File
-                                </button>
-                                <button id="exportLogBtn" class="btn btn-secondary" disabled>
-                                    📤 Export Log
-                                </button>
-                            </div>
-                        </div>
-                        <div id="logText" class="log-text">
+                        <!-- Home page content -->
+                        <div id="homeContent" class="log-text">
                             <div class="placeholder">
                                 <div class="placeholder-icon">📄</div>
                                 <p>Welcome to Debug Log Watcher</p>
@@ -95,10 +98,27 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="floating-actions" style="display: none;">
-                            <button id="quickClearBtn" class="floating-btn floating-btn-danger" title="Clear Log File">
-                                🗑️
-                            </button>
+
+                        <!-- Single log view content -->
+                        <div id="logViewContent" style="display: none;">
+                            <div class="log-content-header">
+                                <div class="log-actions-inline">
+                                    <button id="clearLogBtn" class="btn btn-danger">
+                                        🗑️ Clear Log File
+                                    </button>
+                                    <button id="exportLogBtn" class="btn btn-secondary">
+                                        📤 Export Log
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="logTextContent" class="log-text">
+                                <!-- Log content will be populated here -->
+                            </div>
+                            <div class="floating-actions">
+                                <button id="quickClearBtn" class="floating-btn floating-btn-danger" title="Clear Log File">
+                                    🗑️
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
