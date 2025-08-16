@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('logViewContent found:', !!logViewContent);
     console.log('logText found:', !!logText);
     console.log('logTextContent found:', !!logTextContent);
+    console.log('sidebarToggle found:', !!sidebarToggle);
+    console.log('darkModeToggle found:', !!darkModeToggle);
+    console.log('sidebar found:', !!sidebar);
 
     loadUserPreferences();
     await loadWatchedFiles();
@@ -137,9 +140,15 @@ function setupEventListeners() {
     });
 
     // Dark mode toggle
-    darkModeToggle.addEventListener('click', () => {
-        toggleDarkMode();
-    });
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+            console.log('Dark mode button clicked');
+            toggleDarkMode();
+        });
+        console.log('Dark mode toggle event listener attached');
+    } else {
+        console.warn('darkModeToggle element not found');
+    }
     
     // Modal backdrop click
     addFileModal.addEventListener('click', (e) => {
@@ -607,20 +616,25 @@ function toggleSidebar() {
 }
 
 function toggleDarkMode() {
+  console.log('toggleDarkMode called, current darkMode:', darkMode);
   darkMode = !darkMode;
+  console.log('New darkMode state:', darkMode);
 
   if (darkMode) {
     document.body.setAttribute('data-theme', 'dark');
     darkModeToggle.innerHTML = '☀️';
     darkModeToggle.title = 'Switch to Light Mode';
+    console.log('Switched to dark mode');
   } else {
     document.body.setAttribute('data-theme', 'light');
     darkModeToggle.innerHTML = '🌙';
     darkModeToggle.title = 'Switch to Dark Mode';
+    console.log('Switched to light mode');
   }
 
   // Save dark mode state
   localStorage.setItem('darkMode', darkMode);
+  console.log('Dark mode state saved to localStorage');
 }
 
 function loadUserPreferences() {
