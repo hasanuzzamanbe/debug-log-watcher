@@ -15,18 +15,19 @@ const logText = document.getElementById('logText');
 const logTextContent = document.getElementById('logTextContent');
 const refreshBtn = document.getElementById('refreshBtn');
 const testNotificationBtn = document.getElementById('testNotificationBtn');
-const clearBtn = document.getElementById('clearBtn');
+// const clearBtn = document.getElementById('clearBtn'); // Removed from UI
 const clearLogBtn = document.getElementById('clearLogBtn');
 const exportLogBtn = document.getElementById('exportLogBtn');
 const quickClearBtn = document.getElementById('quickClearBtn');
 const floatingActions = document.querySelector('.floating-actions');
 const orderToggleBtn = document.getElementById('orderToggleBtn');
 const lineCount = document.getElementById('lineCount');
-const minimizeBtn = document.getElementById('minimizeBtn');
-const closeBtn = document.getElementById('closeBtn');
 const backBtn = document.getElementById('backBtn');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const darkModeToggle = document.getElementById('darkModeToggle');
+const sidebar = document.getElementById('sidebar');
 
 // New view elements
 const homeHeader = document.getElementById('homeHeader');
@@ -38,13 +39,14 @@ const logViewContent = document.getElementById('logViewContent');
 let currentFile = null;
 let watchedFiles = [];
 let showNewestFirst = true; // Default to newest first
+let sidebarCollapsed = false;
+let darkMode = false;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Content Loaded');
 
     // Debug: Check if all elements are found
-    console.log('clearBtn found:', !!clearBtn);
     console.log('clearLogBtn found:', !!clearLogBtn);
     console.log('quickClearBtn found:', !!quickClearBtn);
     console.log('homeHeader found:', !!homeHeader);
@@ -53,7 +55,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('logViewContent found:', !!logViewContent);
     console.log('logText found:', !!logText);
     console.log('logTextContent found:', !!logTextContent);
+    console.log('sidebarToggle found:', !!sidebarToggle);
+    console.log('darkModeToggle found:', !!darkModeToggle);
+    console.log('sidebar found:', !!sidebar);
 
+    loadUserPreferences();
     await loadWatchedFiles();
     setupEventListeners();
 });
@@ -87,15 +93,7 @@ function setupEventListeners() {
         refreshCurrentLog();
     });
 
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            console.log('Clear button (header) clicked');
-            clearCurrentLog();
-        });
-        console.log('clearBtn event listener attached');
-    } else {
-        console.warn('clearBtn element not found during setup');
-    }
+    // clearBtn removed from UI
 
     if (clearLogBtn) {
         clearLogBtn.addEventListener('click', () => {
@@ -133,15 +131,24 @@ function setupEventListeners() {
     
     // Navigation
     backBtn.addEventListener('click', () => goBack());
-    
-    // Window controls
-    minimizeBtn.addEventListener('click', () => {
-        ipcRenderer.invoke('minimize-window');
+
+
+
+    // Sidebar toggle
+    sidebarToggle.addEventListener('click', () => {
+        toggleSidebar();
     });
-    
-    closeBtn.addEventListener('click', () => {
-        ipcRenderer.invoke('hide-window');
-    });
+
+    // Dark mode toggle
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+            console.log('Dark mode button clicked');
+            toggleDarkMode();
+        });
+        console.log('Dark mode toggle event listener attached');
+    } else {
+        console.warn('darkModeToggle element not found');
+    }
     
     // Modal backdrop click
     addFileModal.addEventListener('click', (e) => {
@@ -159,6 +166,9 @@ async function loadWatchedFiles() {
         // Start with home view - don't auto-select first file
         if (!currentFile) {
             showHomeView();
+        } else {
+            // If we're in log view, just update the home content for when we go back
+            updateHomeContent();
         }
     } catch (error) {
         showToast('Error loading watched files', 'error');
@@ -212,6 +222,11 @@ async function selectFile(filePath) {
   currentFile = filePath;
   currentLogTitle.textContent = filePath.split('/').pop() || filePath.split('\\').pop();
 
+  // Auto-hide sidebar when viewing a log file
+  if (!sidebarCollapsed) {
+    toggleSidebar();
+  }
+
   // Switch to single log view
   showLogView();
 
@@ -241,7 +256,15 @@ async function loadLogContent(filePath) {
         if (result.success) {
             // Use the correct element for log view content
             if (logTextContent) {
-                logTextContent.innerHTML = `<pre>${escapeHtml(result.content)}</pre>`;
+                try {
+                    const formattedContent = formatLogContent(result.content);
+                    logTextContent.innerHTML = `<div class="formatted-log">${formattedContent}</div>`;
+                } catch (formatError) {
+                    console.error('Error formatting log content:', formatError);
+                    // Fallback to plain text display
+                    logTextContent.innerHTML = `<pre>${escapeHtml(result.content)}</pre>`;
+                    showToast('Log formatting failed, showing raw content', 'warning');
+                }
             }
 
             // Update line count
@@ -300,7 +323,7 @@ async function clearCurrentLog() {
       console.log('Attempting to clear log file:', currentFile);
 
       // Disable clear buttons during operation to prevent double-clicks
-      const clearButtons = [clearBtn, clearLogBtn, quickClearBtn];
+      const clearButtons = [clearLogBtn, quickClearBtn];
       clearButtons.forEach(btn => {
         if (btn) btn.disabled = true;
       });
@@ -322,7 +345,7 @@ async function clearCurrentLog() {
       console.error('Exception in clearCurrentLog:', error);
     } finally {
       // Re-enable clear buttons
-      const clearButtons = [clearBtn, clearLogBtn, quickClearBtn];
+      const clearButtons = [clearLogBtn, quickClearBtn];
       clearButtons.forEach(btn => {
         if (btn && currentFile) btn.disabled = false;
       });
@@ -341,10 +364,10 @@ function toggleLogOrder() {
 
 function updateOrderToggleButton() {
   if (showNewestFirst) {
-    orderToggleBtn.innerHTML = '⬇️ Newest First';
+    orderToggleBtn.innerHTML = '⬇️ ASC';
     orderToggleBtn.title = 'Click to show oldest first';
   } else {
-    orderToggleBtn.innerHTML = '⬆️ Oldest First';
+    orderToggleBtn.innerHTML = '⬆️ DES';
     orderToggleBtn.title = 'Click to show newest first';
   }
 }
@@ -421,6 +444,10 @@ async function removeWatchedFile(filePath) {
             // If we're removing the currently selected file, go back to home view
             if (currentFile === filePath) {
                 currentFile = null;
+                // Auto-show sidebar when returning to home
+                if (sidebarCollapsed) {
+                    toggleSidebar();
+                }
                 showHomeView();
             }
             
@@ -466,6 +493,241 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatLogContent(content) {
+  try {
+    // Split content into individual log entries
+    const lines = content.split('\n');
+    let formattedContent = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      try {
+        const line = lines[i];
+
+        // Check if this is a WordPress timestamp line
+        const timestampMatch = line.match(/^\[(\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC)\]/);
+
+        if (timestampMatch) {
+          // This is a timestamp line - format it
+          const timestamp = timestampMatch[1];
+          const message = line.substring(timestampMatch[0].length).trim();
+
+          formattedContent += `<div class="log-entry">`;
+          formattedContent += `<span class="log-timestamp">[${timestamp}]</span> `;
+          formattedContent += formatLogMessage(message);
+          formattedContent += `</div>\n`;
+        } else if (line.trim()) {
+          // This is a continuation line or standalone content
+          formattedContent += `<div class="log-continuation">`;
+          formattedContent += formatLogMessage(line);
+          formattedContent += `</div>\n`;
+        } else {
+          // Empty line
+          formattedContent += `<div class="log-empty-line"></div>\n`;
+        }
+      } catch (lineError) {
+        console.warn('Error formatting line:', line, lineError);
+        // Fallback to escaped HTML for problematic lines
+        formattedContent += `<div class="log-entry">`;
+        formattedContent += `<span class="log-message">${escapeHtml(lines[i])}</span>`;
+        formattedContent += `</div>\n`;
+      }
+    }
+
+    return formattedContent;
+  } catch (error) {
+    console.error('Error in formatLogContent:', error);
+    // Fallback to simple escaped content
+    return `<pre>${escapeHtml(content)}</pre>`;
+  }
+}
+
+function formatLogMessage(message) {
+  try {
+    // Detect different types of content and format accordingly
+
+    // Check for PHP errors/warnings/notices
+    if (message.match(/^PHP (Fatal error|Warning|Notice|Parse error|Deprecated):/)) {
+      return formatPhpError(message);
+    }
+
+    // Check for arrays (PHP print_r or var_dump style) - but limit processing for very large arrays
+    if (message.includes('Array') && message.includes('(') && message.includes(')')) {
+      // Limit array formatting for very large content to prevent performance issues
+      if (message.length > 10000) {
+        return `<div class="log-large-array">
+          <span class="array-keyword">Array</span>
+          <span class="array-note">(Large array - ${message.length} characters)</span>
+          <details>
+            <summary>Click to view raw content</summary>
+            <pre class="raw-content">${escapeHtml(message)}</pre>
+          </details>
+        </div>`;
+      }
+      return formatArray(message);
+    }
+
+    // Check for JSON - with size limit
+    try {
+      if ((message.trim().startsWith('{') && message.trim().endsWith('}')) ||
+          (message.trim().startsWith('[') && message.trim().endsWith(']'))) {
+        if (message.length > 5000) {
+          // For large JSON, show collapsed view
+          return `<div class="log-large-json">
+            <span class="json-note">Large JSON (${message.length} characters)</span>
+            <details>
+              <summary>Click to view formatted JSON</summary>
+              ${formatJson(JSON.parse(message.trim()))}
+            </details>
+          </div>`;
+        }
+        const parsed = JSON.parse(message.trim());
+        return formatJson(parsed);
+      }
+    } catch (e) {
+      // Not valid JSON, continue with other checks
+    }
+
+    // Check for stack traces
+    if (message.includes('Stack trace:') || message.match(/^#\d+/)) {
+      return formatStackTrace(message);
+    }
+
+    // Check for file paths
+    if (message.match(/\/[^\s]+\.(php|js|css|html)/)) {
+      return formatFilePath(message);
+    }
+
+    // Default formatting for regular messages
+    return `<span class="log-message">${escapeHtml(message)}</span>`;
+  } catch (error) {
+    console.warn('Error formatting message:', error);
+    // Fallback to simple escaped content
+    return `<span class="log-message">${escapeHtml(message)}</span>`;
+  }
+}
+
+function formatPhpError(message) {
+  const errorTypes = {
+    'Fatal error': 'error-fatal',
+    'Warning': 'error-warning',
+    'Notice': 'error-notice',
+    'Parse error': 'error-parse',
+    'Deprecated': 'error-deprecated'
+  };
+
+  let className = 'error-general';
+  for (const [type, cls] of Object.entries(errorTypes)) {
+    if (message.includes(type)) {
+      className = cls;
+      break;
+    }
+  }
+
+  return `<span class="log-error ${className}">${escapeHtml(message)}</span>`;
+}
+
+function formatArray(message) {
+  try {
+    // Check for recursion indicators
+    if (message.includes('*RECURSION*') || message.includes('*CIRCULAR REFERENCE*')) {
+      return `<div class="log-recursive-array">
+        <span class="array-keyword">Array</span>
+        <span class="recursion-warning">⚠️ Contains recursion/circular references</span>
+        <details>
+          <summary>Click to view raw content</summary>
+          <pre class="raw-content">${escapeHtml(message)}</pre>
+        </details>
+      </div>`;
+    }
+
+    // Simple array formatting for PHP print_r style output
+    let formatted = escapeHtml(message);
+
+    // Limit the number of replacements to prevent performance issues
+    const maxReplacements = 1000;
+    let replacementCount = 0;
+
+    // Highlight array structure with limits
+    formatted = formatted.replace(/Array/g, () => {
+      if (replacementCount++ > maxReplacements) return 'Array';
+      return '<span class="array-keyword">Array</span>';
+    });
+
+    replacementCount = 0;
+    formatted = formatted.replace(/\(/g, () => {
+      if (replacementCount++ > maxReplacements) return '(';
+      return '<span class="array-bracket">(</span>';
+    });
+
+    replacementCount = 0;
+    formatted = formatted.replace(/\)/g, () => {
+      if (replacementCount++ > maxReplacements) return ')';
+      return '<span class="array-bracket">)</span>';
+    });
+
+    replacementCount = 0;
+    formatted = formatted.replace(/\[([^\]]+)\]/g, (match, key) => {
+      if (replacementCount++ > maxReplacements) return match;
+      return `<span class="array-key">[${key}]</span>`;
+    });
+
+    replacementCount = 0;
+    formatted = formatted.replace(/=>/g, () => {
+      if (replacementCount++ > maxReplacements) return '=>';
+      return '<span class="array-arrow">=></span>';
+    });
+
+    return `<div class="log-array">${formatted}</div>`;
+  } catch (error) {
+    console.warn('Error formatting array:', error);
+    return `<div class="log-array-error">
+      <span class="array-keyword">Array</span>
+      <span class="format-error">⚠️ Formatting error</span>
+      <details>
+        <summary>Click to view raw content</summary>
+        <pre class="raw-content">${escapeHtml(message)}</pre>
+      </details>
+    </div>`;
+  }
+}
+
+function formatJson(obj) {
+  const jsonString = JSON.stringify(obj, null, 2);
+  let formatted = escapeHtml(jsonString);
+
+  // Highlight JSON syntax
+  formatted = formatted.replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:');
+  formatted = formatted.replace(/:\s*"([^"]*)"/g, ': <span class="json-string">"$1"</span>');
+  formatted = formatted.replace(/:\s*(\d+)/g, ': <span class="json-number">$1</span>');
+  formatted = formatted.replace(/:\s*(true|false|null)/g, ': <span class="json-boolean">$1</span>');
+  formatted = formatted.replace(/[{}]/g, '<span class="json-bracket">$&</span>');
+  formatted = formatted.replace(/[\[\]]/g, '<span class="json-bracket">$&</span>');
+
+  return `<div class="log-json"><pre>${formatted}</pre></div>`;
+}
+
+function formatStackTrace(message) {
+  let formatted = escapeHtml(message);
+
+  // Highlight stack trace elements
+  formatted = formatted.replace(/^(#\d+)/gm, '<span class="stack-number">$1</span>');
+  formatted = formatted.replace(/(\/[^\s]+\.php)/g, '<span class="stack-file">$1</span>');
+  formatted = formatted.replace(/:(\d+)/g, ':<span class="stack-line">$1</span>');
+  formatted = formatted.replace(/(\w+::\w+|\w+->w+)/g, '<span class="stack-method">$1</span>');
+
+  return `<span class="log-stack">${formatted}</span>`;
+}
+
+function formatFilePath(message) {
+  let formatted = escapeHtml(message);
+
+  // Highlight file paths
+  formatted = formatted.replace(/(\/[^\s]+\.(php|js|css|html))/g, '<span class="file-path">$1</span>');
+  formatted = formatted.replace(/:(\d+)/g, ':<span class="line-number">$1</span>');
+
+  return `<span class="log-filepath">${formatted}</span>`;
+}
+
 async function testNotification() {
   try {
     const result = await ipcRenderer.invoke('test-notification');
@@ -479,6 +741,61 @@ async function testNotification() {
   }
 }
 
+function updateHomeContent() {
+  if (!homeContent) return;
+
+  if (watchedFiles.length === 0) {
+    // Show welcome message when no files are watched
+    homeContent.innerHTML = `
+      <div class="placeholder">
+        <div class="placeholder-icon">📄</div>
+        <p>Welcome to Debug Log Watcher</p>
+        <p>Select a log file from the sidebar to start monitoring</p>
+        <div class="placeholder-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
+            + Add Your First Log File
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Show watched files overview
+    homeContent.innerHTML = `
+      <div class="home-files-overview">
+        <div class="overview-header">
+          <h3>📁 Watched Log Files (${watchedFiles.length})</h3>
+          <p>Click on any file to view its contents</p>
+        </div>
+        <div class="files-grid">
+          ${watchedFiles.map(filePath => {
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+            const shortPath = filePath.length > 50 ? '...' + filePath.slice(-47) : filePath;
+            return `
+              <div class="file-card" onclick="selectFile('${filePath.replace(/'/g, "\\'")}')">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                  <div class="file-name">${fileName}</div>
+                  <div class="file-path">${shortPath}</div>
+                </div>
+                <div class="file-actions">
+                  <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); selectFile('${filePath.replace(/'/g, "\\'")}')">
+                    👁️ View
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="overview-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
+            + Add Another Log File
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
 function showHomeView() {
   console.log('Switching to home view');
 
@@ -489,6 +806,9 @@ function showHomeView() {
   // Hide log view elements
   if (logViewHeader) logViewHeader.style.display = 'none';
   if (logViewContent) logViewContent.style.display = 'none';
+
+  // Update home content based on watched files
+  updateHomeContent();
 }
 
 function showLogView() {
@@ -519,9 +839,75 @@ function showLogView() {
   console.log('quickClearBtn visible after view switch:', quickClearBtn && quickClearBtn.offsetParent !== null);
 }
 
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+
+  if (sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').classList.add('sidebar-collapsed');
+    sidebarToggle.innerHTML = '☰';
+    sidebarToggle.title = 'Show Sidebar';
+  } else {
+    sidebar.classList.remove('collapsed');
+    document.querySelector('.main-content').classList.remove('sidebar-collapsed');
+    sidebarToggle.innerHTML = '☰';
+    sidebarToggle.title = 'Hide Sidebar';
+  }
+
+  // Save sidebar state
+  localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+}
+
+function toggleDarkMode() {
+  console.log('toggleDarkMode called, current darkMode:', darkMode);
+  darkMode = !darkMode;
+  console.log('New darkMode state:', darkMode);
+
+  if (darkMode) {
+    document.body.setAttribute('data-theme', 'dark');
+    darkModeToggle.innerHTML = '☀️';
+    darkModeToggle.title = 'Switch to Light Mode';
+    console.log('Switched to dark mode');
+  } else {
+    document.body.setAttribute('data-theme', 'light');
+    darkModeToggle.innerHTML = '🌙';
+    darkModeToggle.title = 'Switch to Dark Mode';
+    console.log('Switched to light mode');
+  }
+
+  // Save dark mode state
+  localStorage.setItem('darkMode', darkMode);
+  console.log('Dark mode state saved to localStorage');
+}
+
+function loadUserPreferences() {
+  // Load sidebar state
+  const savedSidebarState = localStorage.getItem('sidebarCollapsed');
+  if (savedSidebarState === 'true') {
+    sidebarCollapsed = true;
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').classList.add('sidebar-collapsed');
+    sidebarToggle.title = 'Show Sidebar';
+  }
+
+  // Load dark mode state
+  const savedDarkMode = localStorage.getItem('darkMode');
+  if (savedDarkMode === 'true') {
+    darkMode = true;
+    document.body.setAttribute('data-theme', 'dark');
+    darkModeToggle.innerHTML = '☀️';
+    darkModeToggle.title = 'Switch to Light Mode';
+  }
+}
+
 function goBack() {
   // Clear current file selection
   currentFile = null;
+
+  // Auto-show sidebar when returning to home
+  if (sidebarCollapsed) {
+    toggleSidebar();
+  }
 
   // Switch to home view
   showHomeView();
@@ -562,12 +948,13 @@ ipcRenderer.on('select-log-file', (event, filePath) => {
     }
 });
 
+// Make selectFile available globally for home page file cards
+window.selectFile = selectFile;
+
 // Debug function for testing clear functionality
 window.debugClearFunction = function() {
     console.log('=== DEBUG CLEAR FUNCTION ===');
     console.log('currentFile:', currentFile);
-    console.log('clearBtn element:', clearBtn);
-    console.log('clearBtn disabled:', clearBtn ? clearBtn.disabled : 'not found');
     console.log('clearLogBtn element:', clearLogBtn);
     console.log('clearLogBtn disabled:', clearLogBtn ? clearLogBtn.disabled : 'not found');
     console.log('quickClearBtn element:', quickClearBtn);

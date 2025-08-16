@@ -6,7 +6,7 @@
     <title>Debug Log Watcher</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-theme="light">
     <div class="container">
         <header class="header">
             <div class="header-content">
@@ -15,14 +15,14 @@
                     <p>Monitor WordPress debug.log files and get instant notifications</p>
                 </div>
                 <div class="header-right">
-                    <button id="minimizeBtn" class="header-btn" title="Minimize">─</button>
-                    <button id="closeBtn" class="header-btn" title="Close">×</button>
+                    <button id="sidebarToggle" class="header-btn" title="Toggle Sidebar">☰</button>
+                    <button id="darkModeToggle" class="header-btn" title="Toggle Dark Mode">🌙</button>
                 </div>
             </div>
         </header>
 
         <div class="main-content">
-            <div class="sidebar">
+            <div id="sidebar" class="sidebar">
                 <div class="section">
                     <h2>Watched Files</h2>
                     <button id="addFileBtn" class="btn btn-primary">
@@ -38,6 +38,15 @@
                     <h2>Recent Activity</h2>
                     <div id="activityLog" class="activity-log">
                         <!-- Activity log will be populated here -->
+                    </div>
+                </div>
+
+                <div class="copyright-section">
+                    <div class="copyright-content">
+                        <p>Made with ❤️ by</p>
+                        <a href="https://github.com/hasanuzzamanbe" target="_blank" class="github-link">
+                            @github.com/hasanuzzamanbe
+                        </a>
                     </div>
                 </div>
             </div>
@@ -77,8 +86,10 @@
                                 <button id="refreshBtn" class="btn btn-secondary">
                                     🔄 Refresh
                                 </button>
-                                <button id="clearBtn" class="btn btn-danger">
-                                    🗑️ Clear
+                            </div>
+                            <div class="log-controls">
+                                <button id="exportLogBtn" class="btn btn-secondary">
+                                    📤 Export Log
                                 </button>
                             </div>
                         </div>
@@ -101,16 +112,6 @@
 
                         <!-- Single log view content -->
                         <div id="logViewContent" style="display: none;">
-                            <div class="log-content-header">
-                                <div class="log-actions-inline">
-                                    <button id="clearLogBtn" class="btn btn-danger">
-                                        🗑️ Clear Log File
-                                    </button>
-                                    <button id="exportLogBtn" class="btn btn-secondary">
-                                        📤 Export Log
-                                    </button>
-                                </div>
-                            </div>
                             <div id="logTextContent" class="log-text">
                                 <!-- Log content will be populated here -->
                             </div>
