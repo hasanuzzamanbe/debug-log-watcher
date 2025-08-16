@@ -15,18 +15,19 @@ const logText = document.getElementById('logText');
 const logTextContent = document.getElementById('logTextContent');
 const refreshBtn = document.getElementById('refreshBtn');
 const testNotificationBtn = document.getElementById('testNotificationBtn');
-const clearBtn = document.getElementById('clearBtn');
+// const clearBtn = document.getElementById('clearBtn'); // Removed from UI
 const clearLogBtn = document.getElementById('clearLogBtn');
 const exportLogBtn = document.getElementById('exportLogBtn');
 const quickClearBtn = document.getElementById('quickClearBtn');
 const floatingActions = document.querySelector('.floating-actions');
 const orderToggleBtn = document.getElementById('orderToggleBtn');
 const lineCount = document.getElementById('lineCount');
-const minimizeBtn = document.getElementById('minimizeBtn');
-const closeBtn = document.getElementById('closeBtn');
 const backBtn = document.getElementById('backBtn');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const darkModeToggle = document.getElementById('darkModeToggle');
+const sidebar = document.getElementById('sidebar');
 
 // New view elements
 const homeHeader = document.getElementById('homeHeader');
@@ -38,13 +39,14 @@ const logViewContent = document.getElementById('logViewContent');
 let currentFile = null;
 let watchedFiles = [];
 let showNewestFirst = true; // Default to newest first
+let sidebarCollapsed = false;
+let darkMode = false;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Content Loaded');
 
     // Debug: Check if all elements are found
-    console.log('clearBtn found:', !!clearBtn);
     console.log('clearLogBtn found:', !!clearLogBtn);
     console.log('quickClearBtn found:', !!quickClearBtn);
     console.log('homeHeader found:', !!homeHeader);
@@ -54,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('logText found:', !!logText);
     console.log('logTextContent found:', !!logTextContent);
 
+    loadUserPreferences();
     await loadWatchedFiles();
     setupEventListeners();
 });
@@ -87,15 +90,7 @@ function setupEventListeners() {
         refreshCurrentLog();
     });
 
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            console.log('Clear button (header) clicked');
-            clearCurrentLog();
-        });
-        console.log('clearBtn event listener attached');
-    } else {
-        console.warn('clearBtn element not found during setup');
-    }
+    // clearBtn removed from UI
 
     if (clearLogBtn) {
         clearLogBtn.addEventListener('click', () => {
@@ -133,14 +128,17 @@ function setupEventListeners() {
     
     // Navigation
     backBtn.addEventListener('click', () => goBack());
-    
-    // Window controls
-    minimizeBtn.addEventListener('click', () => {
-        ipcRenderer.invoke('minimize-window');
+
+
+
+    // Sidebar toggle
+    sidebarToggle.addEventListener('click', () => {
+        toggleSidebar();
     });
-    
-    closeBtn.addEventListener('click', () => {
-        ipcRenderer.invoke('hide-window');
+
+    // Dark mode toggle
+    darkModeToggle.addEventListener('click', () => {
+        toggleDarkMode();
     });
     
     // Modal backdrop click
@@ -159,6 +157,9 @@ async function loadWatchedFiles() {
         // Start with home view - don't auto-select first file
         if (!currentFile) {
             showHomeView();
+        } else {
+            // If we're in log view, just update the home content for when we go back
+            updateHomeContent();
         }
     } catch (error) {
         showToast('Error loading watched files', 'error');
@@ -211,6 +212,11 @@ async function selectFile(filePath) {
   console.log('selectFile called with:', filePath);
   currentFile = filePath;
   currentLogTitle.textContent = filePath.split('/').pop() || filePath.split('\\').pop();
+
+  // Auto-hide sidebar when viewing a log file
+  if (!sidebarCollapsed) {
+    toggleSidebar();
+  }
 
   // Switch to single log view
   showLogView();
@@ -300,7 +306,7 @@ async function clearCurrentLog() {
       console.log('Attempting to clear log file:', currentFile);
 
       // Disable clear buttons during operation to prevent double-clicks
-      const clearButtons = [clearBtn, clearLogBtn, quickClearBtn];
+      const clearButtons = [clearLogBtn, quickClearBtn];
       clearButtons.forEach(btn => {
         if (btn) btn.disabled = true;
       });
@@ -322,7 +328,7 @@ async function clearCurrentLog() {
       console.error('Exception in clearCurrentLog:', error);
     } finally {
       // Re-enable clear buttons
-      const clearButtons = [clearBtn, clearLogBtn, quickClearBtn];
+      const clearButtons = [clearLogBtn, quickClearBtn];
       clearButtons.forEach(btn => {
         if (btn && currentFile) btn.disabled = false;
       });
@@ -341,10 +347,10 @@ function toggleLogOrder() {
 
 function updateOrderToggleButton() {
   if (showNewestFirst) {
-    orderToggleBtn.innerHTML = '⬇️ Newest First';
+    orderToggleBtn.innerHTML = '⬇️ ASC';
     orderToggleBtn.title = 'Click to show oldest first';
   } else {
-    orderToggleBtn.innerHTML = '⬆️ Oldest First';
+    orderToggleBtn.innerHTML = '⬆️ DES';
     orderToggleBtn.title = 'Click to show newest first';
   }
 }
@@ -421,6 +427,10 @@ async function removeWatchedFile(filePath) {
             // If we're removing the currently selected file, go back to home view
             if (currentFile === filePath) {
                 currentFile = null;
+                // Auto-show sidebar when returning to home
+                if (sidebarCollapsed) {
+                    toggleSidebar();
+                }
                 showHomeView();
             }
             
@@ -479,6 +489,61 @@ async function testNotification() {
   }
 }
 
+function updateHomeContent() {
+  if (!homeContent) return;
+
+  if (watchedFiles.length === 0) {
+    // Show welcome message when no files are watched
+    homeContent.innerHTML = `
+      <div class="placeholder">
+        <div class="placeholder-icon">📄</div>
+        <p>Welcome to Debug Log Watcher</p>
+        <p>Select a log file from the sidebar to start monitoring</p>
+        <div class="placeholder-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
+            + Add Your First Log File
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Show watched files overview
+    homeContent.innerHTML = `
+      <div class="home-files-overview">
+        <div class="overview-header">
+          <h3>📁 Watched Log Files (${watchedFiles.length})</h3>
+          <p>Click on any file to view its contents</p>
+        </div>
+        <div class="files-grid">
+          ${watchedFiles.map(filePath => {
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+            const shortPath = filePath.length > 50 ? '...' + filePath.slice(-47) : filePath;
+            return `
+              <div class="file-card" onclick="selectFile('${filePath.replace(/'/g, "\\'")}')">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                  <div class="file-name">${fileName}</div>
+                  <div class="file-path">${shortPath}</div>
+                </div>
+                <div class="file-actions">
+                  <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); selectFile('${filePath.replace(/'/g, "\\'")}')">
+                    👁️ View
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="overview-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
+            + Add Another Log File
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
 function showHomeView() {
   console.log('Switching to home view');
 
@@ -489,6 +554,9 @@ function showHomeView() {
   // Hide log view elements
   if (logViewHeader) logViewHeader.style.display = 'none';
   if (logViewContent) logViewContent.style.display = 'none';
+
+  // Update home content based on watched files
+  updateHomeContent();
 }
 
 function showLogView() {
@@ -519,9 +587,70 @@ function showLogView() {
   console.log('quickClearBtn visible after view switch:', quickClearBtn && quickClearBtn.offsetParent !== null);
 }
 
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+
+  if (sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').classList.add('sidebar-collapsed');
+    sidebarToggle.innerHTML = '☰';
+    sidebarToggle.title = 'Show Sidebar';
+  } else {
+    sidebar.classList.remove('collapsed');
+    document.querySelector('.main-content').classList.remove('sidebar-collapsed');
+    sidebarToggle.innerHTML = '☰';
+    sidebarToggle.title = 'Hide Sidebar';
+  }
+
+  // Save sidebar state
+  localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+}
+
+function toggleDarkMode() {
+  darkMode = !darkMode;
+
+  if (darkMode) {
+    document.body.setAttribute('data-theme', 'dark');
+    darkModeToggle.innerHTML = '☀️';
+    darkModeToggle.title = 'Switch to Light Mode';
+  } else {
+    document.body.setAttribute('data-theme', 'light');
+    darkModeToggle.innerHTML = '🌙';
+    darkModeToggle.title = 'Switch to Dark Mode';
+  }
+
+  // Save dark mode state
+  localStorage.setItem('darkMode', darkMode);
+}
+
+function loadUserPreferences() {
+  // Load sidebar state
+  const savedSidebarState = localStorage.getItem('sidebarCollapsed');
+  if (savedSidebarState === 'true') {
+    sidebarCollapsed = true;
+    sidebar.classList.add('collapsed');
+    document.querySelector('.main-content').classList.add('sidebar-collapsed');
+    sidebarToggle.title = 'Show Sidebar';
+  }
+
+  // Load dark mode state
+  const savedDarkMode = localStorage.getItem('darkMode');
+  if (savedDarkMode === 'true') {
+    darkMode = true;
+    document.body.setAttribute('data-theme', 'dark');
+    darkModeToggle.innerHTML = '☀️';
+    darkModeToggle.title = 'Switch to Light Mode';
+  }
+}
+
 function goBack() {
   // Clear current file selection
   currentFile = null;
+
+  // Auto-show sidebar when returning to home
+  if (sidebarCollapsed) {
+    toggleSidebar();
+  }
 
   // Switch to home view
   showHomeView();
@@ -562,12 +691,13 @@ ipcRenderer.on('select-log-file', (event, filePath) => {
     }
 });
 
+// Make selectFile available globally for home page file cards
+window.selectFile = selectFile;
+
 // Debug function for testing clear functionality
 window.debugClearFunction = function() {
     console.log('=== DEBUG CLEAR FUNCTION ===');
     console.log('currentFile:', currentFile);
-    console.log('clearBtn element:', clearBtn);
-    console.log('clearBtn disabled:', clearBtn ? clearBtn.disabled : 'not found');
     console.log('clearLogBtn element:', clearLogBtn);
     console.log('clearLogBtn disabled:', clearLogBtn ? clearLogBtn.disabled : 'not found');
     console.log('quickClearBtn element:', quickClearBtn);
