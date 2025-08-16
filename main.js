@@ -7,9 +7,23 @@ let chokidar;
 try {
   chokidar = require('chokidar');
 } catch (error) {
-  // In production, try to load from app.asar.unpacked
-  const chokidarPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'chokidar');
-  chokidar = require(chokidarPath);
+  try {
+    // In production, try to load from app.asar.unpacked
+    const chokidarPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'chokidar');
+    chokidar = require(chokidarPath);
+  } catch (secondError) {
+    try {
+      // Alternative path for different Electron versions
+      const altPath = path.join(__dirname, '..', 'app.asar.unpacked', 'node_modules', 'chokidar');
+      chokidar = require(altPath);
+    } catch (thirdError) {
+      console.error('Failed to load chokidar:', error.message);
+      console.error('Second attempt failed:', secondError.message);
+      console.error('Third attempt failed:', thirdError.message);
+      // Fallback: try to use fs.watch instead
+      chokidar = null;
+    }
+  }
 }
 
 let mainWindow;
@@ -115,6 +129,36 @@ function startWatching(filePath) {
   }
 
   try {
+    if (!chokidar) {
+      console.warn('Chokidar not available, using fs.watch as fallback');
+      // Fallback to fs.watch
+      const watcher = fs.watch(filePath, (eventType, filename) => {
+        if (eventType === 'change') {
+          // Send notification
+          const fileName = path.basename(filePath);
+          const notificationMessage = `New log entries detected in ${fileName}`;
+          sendNotification(fileName, notificationMessage);
+          
+          // Send to renderer process
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('new-log-entry', {
+              filePath: filePath,
+              content: 'File changed',
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      });
+      
+      watcher.on('error', (error) => {
+        console.error(`Error watching ${filePath}:`, error);
+        mainWindow.webContents.send('watch-error', { filePath, error: error.message });
+      });
+      
+      watchers.set(filePath, watcher);
+      return true;
+    }
+
     const watcher = chokidar.watch(filePath, {
       persistent: true,
       ignoreInitial: true,
@@ -190,7 +234,12 @@ function startWatching(filePath) {
 function stopWatching(filePath) {
   const watcher = watchers.get(filePath);
   if (watcher) {
-    watcher.close();
+    if (watcher.close) {
+      watcher.close();
+    } else if (watcher.removeAllListeners) {
+      // For fs.watch fallback
+      watcher.removeAllListeners();
+    }
     watchers.delete(filePath);
     return true;
   }
@@ -434,7 +483,12 @@ app.on('before-quit', () => {
   isQuitting = true;
   // Stop all watchers
   watchers.forEach((watcher, filePath) => {
-    watcher.close();
+    if (watcher.close) {
+      watcher.close();
+    } else if (watcher.removeAllListeners) {
+      // For fs.watch fallback
+      watcher.removeAllListeners();
+    }
   });
   watchers.clear();
 });

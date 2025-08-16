@@ -39,7 +39,16 @@
       "!node_modules/**/*"
     ],
     "asarUnpack": [
-      "node_modules/chokidar/**/*"
+      "node_modules/chokidar/**/*",
+      "node_modules/fsevents/**/*",
+      "node_modules/readdirp/**/*",
+      "node_modules/anymatch/**/*",
+      "node_modules/braces/**/*",
+      "node_modules/glob-parent/**/*",
+      "node_modules/is-binary-path/**/*",
+      "node_modules/is-glob/**/*",
+      "node_modules/normalize-path/**/*",
+      "node_modules/path-is-absolute/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
