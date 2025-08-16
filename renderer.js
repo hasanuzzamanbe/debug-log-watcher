@@ -13,8 +13,14 @@ const activityLog = document.getElementById('activityLog');
 const currentLogTitle = document.getElementById('currentLogTitle');
 const logText = document.getElementById('logText');
 const refreshBtn = document.getElementById('refreshBtn');
-const clearBtn = document.getElementById('clearBtn');
 const testNotificationBtn = document.getElementById('testNotificationBtn');
+const clearBtn = document.getElementById('clearBtn');
+const clearLogBtn = document.getElementById('clearLogBtn');
+const exportLogBtn = document.getElementById('exportLogBtn');
+const quickClearBtn = document.getElementById('quickClearBtn');
+const floatingActions = document.querySelector('.floating-actions');
+const orderToggleBtn = document.getElementById('orderToggleBtn');
+const lineCount = document.getElementById('lineCount');
 const minimizeBtn = document.getElementById('minimizeBtn');
 const closeBtn = document.getElementById('closeBtn');
 const backBtn = document.getElementById('backBtn');
@@ -24,6 +30,7 @@ const toastMessage = document.getElementById('toastMessage');
 // State
 let currentFile = null;
 let watchedFiles = [];
+let showNewestFirst = true; // Default to newest first
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -57,7 +64,11 @@ function setupEventListeners() {
     // Log actions
     refreshBtn.addEventListener('click', () => refreshCurrentLog());
     clearBtn.addEventListener('click', () => clearCurrentLog());
+    clearLogBtn.addEventListener('click', () => clearCurrentLog());
+    exportLogBtn.addEventListener('click', () => exportCurrentLog());
+    quickClearBtn.addEventListener('click', () => clearCurrentLog());
     testNotificationBtn.addEventListener('click', () => testNotification());
+    orderToggleBtn.addEventListener('click', () => toggleLogOrder());
     
     // Navigation
     backBtn.addEventListener('click', () => goBack());
@@ -154,9 +165,15 @@ async function selectFile(filePath) {
   // Enable buttons
   refreshBtn.disabled = false;
   clearBtn.disabled = false;
+  clearLogBtn.disabled = false;
+  exportLogBtn.disabled = false;
+  orderToggleBtn.disabled = false;
   
   // Load log content
   await loadLogContent(filePath);
+  
+  // Show floating actions
+  floatingActions.style.display = 'flex';
   
   // Re-render to update active state
   renderWatchedFiles();
@@ -164,10 +181,17 @@ async function selectFile(filePath) {
 
 async function loadLogContent(filePath) {
     try {
-        const result = await ipcRenderer.invoke('get-log-content', filePath);
+        const result = await ipcRenderer.invoke('get-log-content', filePath, showNewestFirst);
         
         if (result.success) {
             logText.innerHTML = `<pre>${escapeHtml(result.content)}</pre>`;
+            
+            // Update line count
+            const lines = result.content.split('\n').filter(line => line.trim() !== '');
+            lineCount.textContent = `${lines.length} lines`;
+            
+            // Update order toggle button
+            updateOrderToggleButton();
         } else {
             logText.innerHTML = `
                 <div class="placeholder">
@@ -176,6 +200,7 @@ async function loadLogContent(filePath) {
                     <p>${result.error}</p>
                 </div>
             `;
+            lineCount.textContent = '0 lines';
         }
     } catch (error) {
         logText.innerHTML = `
@@ -185,6 +210,7 @@ async function loadLogContent(filePath) {
                 <p>${error.message}</p>
             </div>
         `;
+        lineCount.textContent = '0 lines';
     }
 }
 
@@ -214,6 +240,39 @@ async function clearCurrentLog() {
       } catch (error) {
         showToast('Error clearing log', 'error');
       }
+    }
+  }
+}
+
+function toggleLogOrder() {
+  showNewestFirst = !showNewestFirst;
+  if (currentFile) {
+    loadLogContent(currentFile);
+  }
+}
+
+function updateOrderToggleButton() {
+  if (showNewestFirst) {
+    orderToggleBtn.innerHTML = '⬇️ Newest First';
+    orderToggleBtn.title = 'Click to show oldest first';
+  } else {
+    orderToggleBtn.innerHTML = '⬆️ Oldest First';
+    orderToggleBtn.title = 'Click to show newest first';
+  }
+}
+
+async function exportCurrentLog() {
+  if (currentFile) {
+    try {
+      const result = await ipcRenderer.invoke('export-log-file', currentFile);
+      
+      if (result.success) {
+        showToast(`Log exported to: ${result.filePath}`, 'success');
+      } else {
+        showToast(`Export failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      showToast('Error exporting log', 'error');
     }
   }
 }
@@ -277,7 +336,7 @@ async function removeWatchedFile(filePath) {
             // If we're removing the currently selected file, clear the view
             if (currentFile === filePath) {
                 currentFile = null;
-                currentLogTitle.textContent = 'Select a log file to view';
+                currentLogTitle.textContent = '';
                 backBtn.style.display = 'none';
                 logText.innerHTML = `
                     <div class="placeholder">
@@ -353,20 +412,34 @@ function goBack() {
   backBtn.style.display = 'none';
   
   // Reset title
-  currentLogTitle.textContent = 'Select a log file to view';
+  currentLogTitle.textContent = '';
   
   // Disable action buttons
   refreshBtn.disabled = true;
   clearBtn.disabled = true;
+  clearLogBtn.disabled = true;
+  exportLogBtn.disabled = true;
+  orderToggleBtn.disabled = true;
+  
+  // Reset line count
+  lineCount.textContent = '0 lines';
   
   // Show placeholder content
   logText.innerHTML = `
     <div class="placeholder">
       <div class="placeholder-icon">📄</div>
-      <p>No log file selected</p>
-      <p>Add a debug.log file to start monitoring</p>
+      <p>Welcome to Debug Log Watcher</p>
+      <p>Select a log file from the sidebar to start monitoring</p>
+      <div class="placeholder-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
+          + Add Your First Log File
+        </button>
+      </div>
     </div>
   `;
+  
+  // Hide floating actions
+  floatingActions.style.display = 'none';
   
   // Clear active state from file list
   document.querySelectorAll('.watched-file-item').forEach(item => {

@@ -1,7 +1,16 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const chokidar = require('chokidar');
+
+// Handle chokidar import for both development and production
+let chokidar;
+try {
+  chokidar = require('chokidar');
+} catch (error) {
+  // In production, try to load from app.asar.unpacked
+  const chokidarPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'chokidar');
+  chokidar = require(chokidarPath);
+}
 
 let mainWindow;
 let tray;
@@ -266,10 +275,59 @@ ipcMain.handle('select-file', async () => {
   return null;
 });
 
-ipcMain.handle('get-log-content', (event, filePath) => {
+ipcMain.handle('get-log-content', (event, filePath, showNewestFirst = true) => {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
-    return { success: true, content };
+    
+    if (showNewestFirst) {
+      // Parse WordPress debug log entries and sort by timestamp
+      const lines = content.split('\n');
+      const logEntries = [];
+      let currentEntry = '';
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // Check if this line starts with a WordPress timestamp pattern
+        if (line.match(/^\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\]/)) {
+          // If we have a previous entry, save it
+          if (currentEntry.trim()) {
+            logEntries.push(currentEntry.trim());
+          }
+          // Start new entry
+          currentEntry = line;
+        } else {
+          // Continue current entry
+          currentEntry += '\n' + line;
+        }
+      }
+      
+      // Add the last entry if it exists
+      if (currentEntry.trim()) {
+        logEntries.push(currentEntry.trim());
+      }
+      
+      // Sort entries by timestamp (newest first)
+      logEntries.sort((a, b) => {
+        const timestampA = a.match(/^\[(\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC)\]/);
+        const timestampB = b.match(/^\[(\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC)\]/);
+        
+        if (timestampA && timestampB) {
+          const dateA = new Date(timestampA[1]);
+          const dateB = new Date(timestampB[1]);
+          return dateB - dateA; // Newest first
+        }
+        
+        // If no timestamp, keep original order
+        return 0;
+      });
+      
+      const sortedContent = logEntries.join('\n\n');
+      return { success: true, content: sortedContent };
+    } else {
+      // Return content as-is (oldest first)
+      return { success: true, content };
+    }
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -279,6 +337,34 @@ ipcMain.handle('clear-log-file', (event, filePath) => {
   try {
     fs.writeFileSync(filePath, '');
     return { success: true, message: 'Log file cleared successfully' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('export-log-file', (event, filePath) => {
+  try {
+    const fileName = path.basename(filePath);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const exportFileName = `${fileName.replace('.log', '')}_export_${timestamp}.log`;
+    
+    const result = dialog.showSaveDialogSync(mainWindow, {
+      title: 'Export Log File',
+      defaultPath: exportFileName,
+      filters: [
+        { name: 'Log Files', extensions: ['log'] },
+        { name: 'Text Files', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    
+    if (result) {
+      const content = fs.readFileSync(filePath, 'utf8');
+      fs.writeFileSync(result, content);
+      return { success: true, filePath: result };
+    } else {
+      return { success: false, error: 'Export cancelled' };
+    }
   } catch (error) {
     return { success: false, error: error.message };
   }
