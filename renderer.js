@@ -245,6 +245,11 @@ async function selectFile(filePath) {
   // Load log content
   await loadLogContent(filePath);
 
+  // Ensure clear buttons are visible after loading content
+  setTimeout(() => {
+    ensureClearButtonsVisible();
+  }, 200);
+
   // Re-render to update active state
   renderWatchedFiles();
 }
@@ -273,6 +278,9 @@ async function loadLogContent(filePath) {
 
             // Update order toggle button
             updateOrderToggleButton();
+
+            // Ensure clear buttons are visible and enabled after content loads
+            ensureClearButtonsVisible();
         } else {
             if (logTextContent) {
                 logTextContent.innerHTML = `
@@ -284,6 +292,9 @@ async function loadLogContent(filePath) {
                 `;
             }
             lineCount.textContent = '0 lines';
+
+            // Even on error, ensure clear buttons are visible
+            ensureClearButtonsVisible();
         }
     } catch (error) {
         if (logTextContent) {
@@ -296,6 +307,49 @@ async function loadLogContent(filePath) {
             `;
         }
         lineCount.textContent = '0 lines';
+
+        // Even on error, ensure clear buttons are visible
+        ensureClearButtonsVisible();
+    }
+}
+
+function ensureClearButtonsVisible() {
+    console.log('ensureClearButtonsVisible called');
+
+    // Make sure we're in log view and have a current file
+    if (!currentFile) {
+        console.log('No current file, skipping clear button visibility');
+        return;
+    }
+
+    // Ensure log view content is visible
+    if (logViewContent) {
+        logViewContent.style.display = 'block';
+        console.log('logViewContent made visible');
+    }
+
+    // Check and enable clear buttons
+    if (clearLogBtn) {
+        clearLogBtn.disabled = false;
+        clearLogBtn.style.display = '';
+        console.log('clearLogBtn enabled and visible');
+    } else {
+        console.warn('clearLogBtn not found');
+    }
+
+    if (quickClearBtn) {
+        quickClearBtn.disabled = false;
+        quickClearBtn.style.display = '';
+        console.log('quickClearBtn enabled and visible');
+    } else {
+        console.warn('quickClearBtn not found');
+    }
+
+    // Make sure floating actions are visible
+    const floatingActions = document.querySelector('.floating-actions');
+    if (floatingActions) {
+        floatingActions.style.display = 'flex';
+        console.log('floating actions made visible');
     }
 }
 
@@ -640,44 +694,19 @@ function formatArray(message) {
       </div>`;
     }
 
-    // Simple array formatting for PHP print_r style output
-    let formatted = escapeHtml(message);
+    // For very large arrays, show collapsed view immediately
+    if (message.length > 8000) {
+      return `<div class="log-large-array">
+        <span class="array-keyword">Array</span>
+        <span class="array-note">(Large array - ${message.length} characters)</span>
+        <details>
+          <summary>Click to view formatted content</summary>
+          <div class="formatted-array-content">${formatArraySafely(message)}</div>
+        </details>
+      </div>`;
+    }
 
-    // Limit the number of replacements to prevent performance issues
-    const maxReplacements = 1000;
-    let replacementCount = 0;
-
-    // Highlight array structure with limits
-    formatted = formatted.replace(/Array/g, () => {
-      if (replacementCount++ > maxReplacements) return 'Array';
-      return '<span class="array-keyword">Array</span>';
-    });
-
-    replacementCount = 0;
-    formatted = formatted.replace(/\(/g, () => {
-      if (replacementCount++ > maxReplacements) return '(';
-      return '<span class="array-bracket">(</span>';
-    });
-
-    replacementCount = 0;
-    formatted = formatted.replace(/\)/g, () => {
-      if (replacementCount++ > maxReplacements) return ')';
-      return '<span class="array-bracket">)</span>';
-    });
-
-    replacementCount = 0;
-    formatted = formatted.replace(/\[([^\]]+)\]/g, (match, key) => {
-      if (replacementCount++ > maxReplacements) return match;
-      return `<span class="array-key">[${key}]</span>`;
-    });
-
-    replacementCount = 0;
-    formatted = formatted.replace(/=>/g, () => {
-      if (replacementCount++ > maxReplacements) return '=>';
-      return '<span class="array-arrow">=></span>';
-    });
-
-    return `<div class="log-array">${formatted}</div>`;
+    return formatArraySafely(message);
   } catch (error) {
     console.warn('Error formatting array:', error);
     return `<div class="log-array-error">
@@ -688,6 +717,50 @@ function formatArray(message) {
         <pre class="raw-content">${escapeHtml(message)}</pre>
       </details>
     </div>`;
+  }
+}
+
+function formatArraySafely(message) {
+  try {
+    // Escape HTML first to prevent any injection issues
+    let formatted = escapeHtml(message);
+
+    // Split into lines for better processing
+    const lines = formatted.split('\n');
+    let result = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Skip empty lines
+      if (!line.trim()) {
+        result += '\n';
+        continue;
+      }
+
+      // Format different parts of the array structure
+      // Handle Array keyword
+      line = line.replace(/^(\s*)(Array)(\s*)$/g, '$1<span class="array-keyword">$2</span>$3');
+
+      // Handle opening and closing parentheses on their own lines
+      line = line.replace(/^(\s*)(\()(\s*)$/g, '$1<span class="array-bracket">$2</span>$3');
+      line = line.replace(/^(\s*)(\))(\s*)$/g, '$1<span class="array-bracket">$2</span>$3');
+
+      // Handle array keys with => arrows (be more specific to avoid issues)
+      line = line.replace(/^(\s*)\[([^\]]+)\](\s*)(=&gt;)(\s*)(.*)$/g,
+        '$1<span class="array-key">[$2]</span>$3<span class="array-arrow">$4</span>$5<span class="array-value">$6</span>');
+
+      // Handle nested Array declarations
+      line = line.replace(/(\s+)(Array)(\s*)$/g, '$1<span class="array-keyword">$2</span>$3');
+
+      result += line + '\n';
+    }
+
+    return `<div class="log-array"><pre class="array-content">${result}</pre></div>`;
+  } catch (error) {
+    console.warn('Error in formatArraySafely:', error);
+    // Ultimate fallback - just return escaped content
+    return `<div class="log-array"><pre class="array-content">${escapeHtml(message)}</pre></div>`;
   }
 }
 
@@ -837,6 +910,11 @@ function showLogView() {
   // Debug: Check if clear buttons are now visible
   console.log('clearLogBtn visible after view switch:', clearLogBtn && clearLogBtn.offsetParent !== null);
   console.log('quickClearBtn visible after view switch:', quickClearBtn && quickClearBtn.offsetParent !== null);
+
+  // Ensure clear buttons are visible after view switch
+  setTimeout(() => {
+    ensureClearButtonsVisible();
+  }, 100);
 }
 
 function toggleSidebar() {

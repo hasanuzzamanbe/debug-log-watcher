@@ -415,6 +415,14 @@ body[data-theme="dark"] .array-arrow {
     color: #b0b0b0;
 }
 
+body[data-theme="dark"] .array-value {
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] .formatted-array-content {
+    border-color: #505050;
+}
+
 body[data-theme="dark"] .log-json {
     background: rgba(45, 45, 45, 0.5);
     border-color: #505050;
@@ -999,6 +1007,28 @@ body[data-theme="dark"] .line-number {
 .array-arrow {
     color: #718096;
     margin: 0 4px;
+}
+
+.array-value {
+    color: #2d3748;
+}
+
+.array-content {
+    margin: 0;
+    padding: 0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.formatted-array-content {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    margin-top: 8px;
 }
 
 /* JSON Highlighting */

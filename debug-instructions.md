@@ -1,4 +1,4 @@
-# Debug Instructions for Clear Button and Scrolling Issues
+y**# Debug Instructions for Clear Button and Scrolling Issues
 
 ## Steps to Test:
 
