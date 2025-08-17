@@ -5,14 +5,14 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:mac-universal": "electron-builder --mac --universal",
-    "build:mac-arm64": "electron-builder --mac --arm64",
-    "build:mac-x64": "electron-builder --mac --x64",
+    "build": "npm run rebuild && electron-builder",
+    "build:mac": "npm run rebuild && electron-builder --mac",
+    "build:mac-universal": "npm run rebuild && electron-builder --mac --universal",
+    "build:mac-arm64": "npm run rebuild && electron-builder --mac --arm64",
+    "build:mac-x64": "npm run rebuild && electron-builder --mac --x64",
     "dev": "electron . --dev",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "pack": "npm run rebuild && electron-builder --dir",
+    "dist": "npm run rebuild && electron-builder",
     "deploy": "./scripts/deploy.sh",
     "postinstall": "electron-builder install-app-deps",
     "rebuild": "electron-rebuild"
@@ -26,7 +26,11 @@
     "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
-    "chokidar": "^3.5.3"
+    "chokidar": "^3.5.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   },
   "build": {
     "appId": "com.debuglogwatcher.app",
@@ -36,19 +40,20 @@
     },
     "files": [
       "**/*",
-      "!node_modules/**/*"
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!**/test/**/*",
+      "!**/tests/**/*",
+      "!**/*.test.js",
+      "!**/*.spec.js"
     ],
     "asarUnpack": [
-      "node_modules/chokidar/**/*",
-      "node_modules/fsevents/**/*",
-      "node_modules/readdirp/**/*",
-      "node_modules/anymatch/**/*",
-      "node_modules/braces/**/*",
-      "node_modules/glob-parent/**/*",
-      "node_modules/is-binary-path/**/*",
-      "node_modules/is-glob/**/*",
-      "node_modules/normalize-path/**/*",
-      "node_modules/path-is-absolute/**/*"
+      "node_modules/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",

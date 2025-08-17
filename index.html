@@ -41,6 +41,30 @@
                     </div>
                 </div>
 
+                <div class="section">
+                    <h2>🔍 Dumper</h2>
+                    <div class="dumper-controls">
+                        <button id="toggleDumpServerBtn" class="btn btn-secondary">
+                            <span id="dumpServerStatus">▶️ Start Server</span>
+                        </button>
+                        <div id="dumpServerInfo" class="dump-server-info" style="display: none;">
+                            <p>Server running on port <strong>9913</strong></p>
+                            <p class="dump-endpoint">POST: <code>http://localhost:9913/dump</code></p>
+                            <div class="wp-plugin-info">
+                                <p><strong>📦 WordPress Plugin:</strong></p>
+                                <p>Install <a href="https://github.com/hasanuzzamanbe/wp-dumper/releases/" target="_blank" class="plugin-link">WP Dumper Plugin</a></p>
+                                <p>Then use: <code>dump($variable)</code></p>
+                            </div>
+                        </div>
+                        <button id="viewDumperBtn" class="btn btn-primary" style="display: none;">
+                            👁️ View Dumps
+                        </button>
+                        <button id="clearDumpsBtn" class="btn btn-danger" style="display: none;">
+                            🗑️ Clear Dumps
+                        </button>
+                    </div>
+                </div>
+
                 <div class="copyright-section">
                     <div class="copyright-content">
                         <p>Made with ❤️ by</p>
@@ -119,6 +143,79 @@
                                 <button id="quickClearBtn" class="floating-btn floating-btn-danger" title="Clear Log File">
                                     🗑️
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Dumper view content -->
+                        <div id="dumperViewContent" class="dumper-viewer" style="display: none;">
+                            <div class="dumper-header">
+                                <div class="dumper-header-left">
+                                    <button id="dumperBackBtn" class="btn btn-secondary back-btn">
+                                        ← Back
+                                    </button>
+                                    <h2>🔍 WP Dump Viewer</h2>
+                                </div>
+                                <div class="dumper-actions">
+                                    <div class="dumper-info">
+                                        <span id="dumpCount" class="dump-count">0 dumps</span>
+                                        <span id="serverStatusIndicator" class="server-status">🔴 Offline</span>
+                                    </div>
+                                    <div class="dumper-controls">
+                                        <button id="clearAllDumpsBtn" class="btn btn-danger">
+                                            🗑️ Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dumper-content">
+                                <div id="dumpsContainer" class="dumps-container">
+                                    <div class="placeholder">
+                                        <div class="placeholder-icon">🔍</div>
+                                        <h3>No dumps received yet</h3>
+                                        <p>Follow these steps to start debugging with WordPress:</p>
+
+                                        <div class="setup-instructions">
+                                            <div class="instruction-step">
+                                                <div class="step-number">1</div>
+                                                <div class="step-content">
+                                                    <h4>Install WordPress Plugin</h4>
+                                                    <p>Download and install the <strong>WP Dumper Plugin</strong>:</p>
+                                                    <a href="https://github.com/hasanuzzamanbe/wp-dumper/releases/" target="_blank" class="download-link">
+                                                        📦 Download WP Dumper Plugin
+                                                    </a>
+                                                </div>
+                                            </div>
+
+                                            <div class="instruction-step">
+                                                <div class="step-number">2</div>
+                                                <div class="step-content">
+                                                    <h4>Use in Your Code</h4>
+                                                    <p>Add dump calls in your WordPress code:</p>
+                                                    <div class="code-example">
+                                                        <code>dump($variable);</code><br>
+                                                        <code>dump($user, $post, $meta);</code><br>
+                                                        <code>dd($data); // Dump and die</code>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="instruction-step">
+                                                <div class="step-number">3</div>
+                                                <div class="step-content">
+                                                    <h4>Server Endpoint</h4>
+                                                    <p>Plugin sends dumps to:</p>
+                                                    <div class="endpoint-info">
+                                                        <code>POST http://localhost:9913/dump</code>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="help-note">
+                                            <p><strong>💡 Tip:</strong> Make sure the dump server is running (green status) before using dump() in your WordPress code.</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

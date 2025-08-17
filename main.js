@@ -26,10 +26,36 @@ try {
   }
 }
 
+// Dump server imports with error handling
+let express, http, Server, bodyParser, cors;
+let dumpServerAvailable = false;
+
+try {
+  express = require('express');
+  http = require('http');
+  const socketIO = require("socket.io");
+  Server = socketIO.Server;
+  bodyParser = require('body-parser');
+  cors = require('cors');
+  dumpServerAvailable = true;
+  console.log('Dump server dependencies loaded successfully');
+} catch (error) {
+  console.error('Failed to load dump server dependencies:', error.message);
+  console.log('Dump server functionality will be disabled');
+  dumpServerAvailable = false;
+}
+
 let mainWindow;
 let tray;
 let watchers = new Map();
 let isQuitting = false;
+
+// Dump server variables
+let dumpServer = null;
+let dumpApp = null;
+let dumpIO = null;
+let isDumpServerRunning = false;
+const DUMP_PORT = 9913;
 
 // Store watched files configuration
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -478,6 +504,181 @@ ipcMain.handle('minimize-window', () => {
 ipcMain.handle('hide-window', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.hide();
+  }
+});
+
+// Laravel/Symfony dump formatter
+function formatLaravelDump(rawHtml) {
+  try {
+    // Clean up the raw dump text and convert to HTML
+    let formatted = rawHtml
+      .replace(/\n/g, '<br>')
+      .replace(/\s{2,}/g, '&nbsp;&nbsp;')
+      .replace(/\{#(\d+)/g, '<span class="sf-dump-note">{#$1</span>')
+      .replace(/#(\w+):/g, '<span class="sf-dump-private">#$1:</span>')
+      .replace(/\+(\w+):/g, '<span class="sf-dump-public">+$1:</span>')
+      .replace(/-(\w+):/g, '<span class="sf-dump-protected">-$1:</span>')
+      .replace(/"([^"]+)":/g, '"<span class="sf-dump-key">$1</span>":')
+      .replace(/=> "([^"]+)"/g, '=> "<span class="sf-dump-str">$1</span>"')
+      .replace(/=> (\d+)/g, '=> <span class="sf-dump-num">$1</span>')
+      .replace(/=> (null|true|false)/g, '=> <span class="sf-dump-const">$1</span>')
+      .replace(/array:(\d+)/g, '<span class="sf-dump-note">array:$1</span>')
+      .replace(/\[([^\]]+)\]/g, '[<span class="sf-dump-index">$1</span>]')
+      .replace(/(FluentCart\\[^\s{]+)/g, '<span class="sf-dump-class">$1</span>');
+
+    return `<div class="sf-dump laravel-dump"><pre>${formatted}</pre></div>`;
+  } catch (error) {
+    console.error('Error formatting Laravel dump:', error);
+    return `<div class="sf-dump laravel-dump"><pre>${rawHtml}</pre></div>`;
+  }
+}
+
+// Dump Server Functions
+function startDumpServer() {
+  if (!dumpServerAvailable) {
+    console.error('Dump server dependencies not available');
+    return { success: false, error: 'Dump server dependencies not available. Please reinstall the application.' };
+  }
+
+  if (isDumpServerRunning) {
+    console.log('Dump server is already running');
+    return { success: true, message: 'Dump server is already running' };
+  }
+
+  try {
+    dumpApp = express();
+    dumpServer = http.createServer(dumpApp);
+    dumpIO = new Server(dumpServer, {
+      cors: {
+        origin: "*",
+      }
+    });
+
+    dumpApp.use(cors());
+    dumpApp.use(bodyParser.json({ limit: '50mb' }));
+
+    dumpApp.post('/dump', (req, res) => {
+      const rawData = req.body;
+      console.log('Raw dump data received:', rawData);
+
+      // Process different dump formats
+      let content = '';
+      let time = rawData.time || new Date().toISOString();
+
+      if (rawData.html) {
+        // Laravel/Symfony dump format with html field
+        content = formatLaravelDump(rawData.html);
+        if (rawData.time) {
+          time = rawData.time;
+        }
+      } else if (rawData.content) {
+        content = rawData.content;
+      } else if (rawData.dump) {
+        content = rawData.dump;
+      } else if (rawData.data) {
+        content = rawData.data;
+      } else {
+        content = JSON.stringify(rawData, null, 2);
+      }
+
+      // Add source information if available
+      if (rawData.source) {
+        const sourceInfo = `<div class="dump-source">
+          <strong>Source:</strong> ${rawData.source.file}:${rawData.source.line}
+        </div>`;
+        content = sourceInfo + content;
+      }
+
+      const dumpData = {
+        time: time,
+        content: content,
+        source: rawData.source || null
+      };
+
+      console.log(`Processed dump data:`, dumpData);
+
+      // Broadcast to Socket.IO clients
+      dumpIO.emit('new-dump', dumpData);
+
+      // Send to renderer process
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('new-dump', dumpData);
+      }
+
+      console.log(`Received and broadcasted a new dump at ${dumpData.time}`);
+      res.status(200).send('OK');
+    });
+
+    dumpIO.on('connection', (socket) => {
+      console.log('A dump viewer connected.');
+      socket.on('disconnect', () => {
+        console.log('A dump viewer disconnected.');
+      });
+    });
+
+    dumpServer.listen(DUMP_PORT, () => {
+      console.log(`WP Dump Server is running on http://localhost:${DUMP_PORT}`);
+      isDumpServerRunning = true;
+    });
+
+    return { success: true, message: `Dump server started on port ${DUMP_PORT}` };
+  } catch (error) {
+    console.error('Error starting dump server:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function stopDumpServer() {
+  if (!isDumpServerRunning) {
+    return { success: true, message: 'Dump server is not running' };
+  }
+
+  try {
+    if (dumpServer) {
+      dumpServer.close(() => {
+        console.log('Dump server stopped');
+      });
+    }
+    isDumpServerRunning = false;
+    dumpServer = null;
+    dumpApp = null;
+    dumpIO = null;
+    return { success: true, message: 'Dump server stopped' };
+  } catch (error) {
+    console.error('Error stopping dump server:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// IPC handlers for dump server
+ipcMain.handle('start-dump-server', () => {
+  return startDumpServer();
+});
+
+ipcMain.handle('stop-dump-server', () => {
+  return stopDumpServer();
+});
+
+ipcMain.handle('get-dump-server-status', () => {
+  return {
+    running: isDumpServerRunning,
+    port: DUMP_PORT,
+    available: dumpServerAvailable
+  };
+});
+
+ipcMain.handle('show-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+
+    // On macOS, also bring the app to front
+    if (process.platform === 'darwin') {
+      app.focus();
+    }
   }
 });
 
