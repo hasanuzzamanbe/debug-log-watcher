@@ -35,12 +35,30 @@ const homeContent = document.getElementById('homeContent');
 const logViewHeader = document.getElementById('logViewHeader');
 const logViewContent = document.getElementById('logViewContent');
 
+// Dumper elements
+const toggleDumpServerBtn = document.getElementById('toggleDumpServerBtn');
+const dumpServerStatus = document.getElementById('dumpServerStatus');
+const dumpServerInfo = document.getElementById('dumpServerInfo');
+const viewDumperBtn = document.getElementById('viewDumperBtn');
+const clearDumpsBtn = document.getElementById('clearDumpsBtn');
+const dumperViewContent = document.getElementById('dumperViewContent');
+const dumperBackBtn = document.getElementById('dumperBackBtn');
+const dumpsContainer = document.getElementById('dumpsContainer');
+const dumpCount = document.getElementById('dumpCount');
+const serverStatusIndicator = document.getElementById('serverStatusIndicator');
+const clearAllDumpsBtn = document.getElementById('clearAllDumpsBtn');
+
 // State
 let currentFile = null;
 let watchedFiles = [];
 let showNewestFirst = true; // Default to newest first
 let sidebarCollapsed = false;
 let darkMode = false;
+
+// Dumper state
+let isDumpServerRunning = false;
+let dumps = [];
+let currentView = 'home'; // 'home', 'log', 'dumper'
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -61,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadUserPreferences();
     await loadWatchedFiles();
+    await loadDumpServerStatus();
     setupEventListeners();
 });
 
@@ -128,6 +147,37 @@ function setupEventListeners() {
         console.log('Order toggle button clicked');
         toggleLogOrder();
     });
+
+    // Dumper event listeners
+    if (toggleDumpServerBtn) {
+        toggleDumpServerBtn.addEventListener('click', () => {
+            toggleDumpServer();
+        });
+    }
+
+    if (viewDumperBtn) {
+        viewDumperBtn.addEventListener('click', () => {
+            showDumperView();
+        });
+    }
+
+    if (clearDumpsBtn) {
+        clearDumpsBtn.addEventListener('click', () => {
+            clearAllDumps();
+        });
+    }
+
+    if (dumperBackBtn) {
+        dumperBackBtn.addEventListener('click', () => {
+            goBackFromDumper();
+        });
+    }
+
+    if (clearAllDumpsBtn) {
+        clearAllDumpsBtn.addEventListener('click', () => {
+            clearAllDumps();
+        });
+    }
     
     // Navigation
     backBtn.addEventListener('click', () => goBack());
@@ -798,6 +848,7 @@ function updateHomeContent() {
 
 function showHomeView() {
   console.log('Switching to home view');
+  currentView = 'home';
 
   // Show home elements
   if (homeHeader) homeHeader.style.display = 'flex';
@@ -807,12 +858,16 @@ function showHomeView() {
   if (logViewHeader) logViewHeader.style.display = 'none';
   if (logViewContent) logViewContent.style.display = 'none';
 
+  // Hide dumper view elements
+  if (dumperViewContent) dumperViewContent.style.display = 'none';
+
   // Update home content based on watched files
   updateHomeContent();
 }
 
 function showLogView() {
   console.log('Switching to log view');
+  currentView = 'log';
 
   // Hide home elements
   if (homeHeader) {
@@ -822,6 +877,12 @@ function showLogView() {
   if (homeContent) {
     homeContent.style.display = 'none';
     console.log('Hidden homeContent');
+  }
+
+  // Hide dumper view elements
+  if (dumperViewContent) {
+    dumperViewContent.style.display = 'none';
+    console.log('Hidden dumperViewContent');
   }
 
   // Show log view elements
@@ -920,6 +981,156 @@ function goBack() {
   showToast('Returned to main view', 'success');
 }
 
+// Dumper Functions
+async function toggleDumpServer() {
+  try {
+    if (isDumpServerRunning) {
+      const result = await ipcRenderer.invoke('stop-dump-server');
+      if (result.success) {
+        isDumpServerRunning = false;
+        updateDumpServerUI();
+        showToast(result.message, 'success');
+      } else {
+        showToast(`Error stopping server: ${result.error}`, 'error');
+      }
+    } else {
+      const result = await ipcRenderer.invoke('start-dump-server');
+      if (result.success) {
+        isDumpServerRunning = true;
+        updateDumpServerUI();
+        showToast(result.message, 'success');
+      } else {
+        showToast(`Error starting server: ${result.error}`, 'error');
+      }
+    }
+  } catch (error) {
+    showToast(`Error toggling dump server: ${error.message}`, 'error');
+  }
+}
+
+function updateDumpServerUI() {
+  if (isDumpServerRunning) {
+    dumpServerStatus.textContent = '⏹️ Stop Server';
+    dumpServerInfo.style.display = 'block';
+    viewDumperBtn.style.display = 'block';
+    clearDumpsBtn.style.display = 'block';
+    serverStatusIndicator.textContent = '🟢 Online';
+  } else {
+    dumpServerStatus.textContent = '▶️ Start Server';
+    dumpServerInfo.style.display = 'none';
+    viewDumperBtn.style.display = 'none';
+    clearDumpsBtn.style.display = 'none';
+    serverStatusIndicator.textContent = '🔴 Offline';
+  }
+}
+
+function showDumperView() {
+  currentView = 'dumper';
+
+  // Auto-hide sidebar when viewing dumper
+  if (!sidebarCollapsed) {
+    toggleSidebar();
+  }
+
+  // Hide other views
+  if (homeHeader) homeHeader.style.display = 'none';
+  if (homeContent) homeContent.style.display = 'none';
+  if (logViewHeader) logViewHeader.style.display = 'none';
+  if (logViewContent) logViewContent.style.display = 'none';
+
+  // Show dumper view
+  if (dumperViewContent) dumperViewContent.style.display = 'block';
+
+  updateDumperView();
+}
+
+function goBackFromDumper() {
+  currentView = 'home';
+
+  // Auto-show sidebar when returning to home
+  if (sidebarCollapsed) {
+    toggleSidebar();
+  }
+
+  // Switch to home view
+  showHomeView();
+
+  showToast('Returned to main view', 'success');
+}
+
+function updateDumperView() {
+  updateDumpServerUI();
+  renderDumps();
+}
+
+function renderDumps() {
+  console.log('renderDumps called, dumps count:', dumps.length);
+  if (!dumpsContainer) {
+    console.warn('dumpsContainer not found');
+    return;
+  }
+
+  if (dumps.length === 0) {
+    dumpsContainer.innerHTML = `
+      <div class="placeholder">
+        <div class="placeholder-icon">🔍</div>
+        <p>No dumps received yet</p>
+        <p>Start the dump server and send dumps from your WordPress application</p>
+        <div class="placeholder-actions">
+          <p><strong>Endpoint:</strong> <code>POST http://localhost:9913/dump</code></p>
+        </div>
+      </div>
+    `;
+  } else {
+    dumpsContainer.innerHTML = dumps.map((dump, index) => {
+      const dumpNumber = dumps.length - index;
+      const dumpTime = dump.time || new Date().toISOString();
+      const dumpContent = dump.content || 'No content available';
+
+      return `
+        <div class="dump-card">
+          <div class="dump-meta">
+            <span>Dump #${dumpNumber}</span>
+            <span>${dumpTime}</span>
+          </div>
+          <div class="dump-content">
+            ${dumpContent}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (dumpCount) {
+    dumpCount.textContent = `${dumps.length} dumps`;
+  }
+}
+
+function clearAllDumps() {
+  if (dumps.length === 0) {
+    showToast('No dumps to clear', 'info');
+    return;
+  }
+
+  const confirmed = confirm(`Are you sure you want to clear all ${dumps.length} dumps?\n\nThis action cannot be undone.`);
+
+  if (confirmed) {
+    dumps = [];
+    renderDumps();
+    showToast('All dumps cleared', 'success');
+  }
+}
+
+async function loadDumpServerStatus() {
+  try {
+    const status = await ipcRenderer.invoke('get-dump-server-status');
+    isDumpServerRunning = status.running;
+    updateDumpServerUI();
+  } catch (error) {
+    console.error('Error loading dump server status:', error);
+  }
+}
+
 // IPC Listeners
 ipcRenderer.on('new-log-entry', (event, data) => {
     addActivityEntry(`New log entries in ${data.filePath.split('/').pop()}`);
@@ -946,6 +1157,35 @@ ipcRenderer.on('select-log-file', (event, filePath) => {
     } else {
         showToast('Log file no longer being watched', 'warning');
     }
+});
+
+ipcRenderer.on('new-dump', (event, dumpData) => {
+    console.log('New dump received:', dumpData);
+
+    // Validate and normalize dump data
+    const normalizedDump = {
+        time: dumpData.time || new Date().toISOString(),
+        content: dumpData.content || 'No content available'
+    };
+
+    dumps.unshift(normalizedDump); // Add to beginning of array
+
+    // Limit to last 100 dumps to prevent memory issues
+    if (dumps.length > 100) {
+        dumps = dumps.slice(0, 100);
+    }
+
+    // Update UI if we're in dumper view
+    if (currentView === 'dumper') {
+        renderDumps();
+    }
+
+    // Show notification
+    const timeDisplay = new Date(normalizedDump.time).toLocaleTimeString();
+    showToast(`New dump received at ${timeDisplay}`, 'info');
+
+    // Request to show the app window when dump is received
+    ipcRenderer.invoke('show-window');
 });
 
 // Make selectFile available globally for home page file cards

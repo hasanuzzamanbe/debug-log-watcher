@@ -41,6 +41,25 @@
                     </div>
                 </div>
 
+                <div class="section">
+                    <h2>🔍 Dumper</h2>
+                    <div class="dumper-controls">
+                        <button id="toggleDumpServerBtn" class="btn btn-secondary">
+                            <span id="dumpServerStatus">▶️ Start Server</span>
+                        </button>
+                        <div id="dumpServerInfo" class="dump-server-info" style="display: none;">
+                            <p>Server running on port <strong>9913</strong></p>
+                            <p class="dump-endpoint">POST: <code>http://localhost:9913/dump</code></p>
+                        </div>
+                        <button id="viewDumperBtn" class="btn btn-primary" style="display: none;">
+                            👁️ View Dumps
+                        </button>
+                        <button id="clearDumpsBtn" class="btn btn-danger" style="display: none;">
+                            🗑️ Clear Dumps
+                        </button>
+                    </div>
+                </div>
+
                 <div class="copyright-section">
                     <div class="copyright-content">
                         <p>Made with ❤️ by</p>
@@ -119,6 +138,41 @@
                                 <button id="quickClearBtn" class="floating-btn floating-btn-danger" title="Clear Log File">
                                     🗑️
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Dumper view content -->
+                        <div id="dumperViewContent" class="dumper-viewer" style="display: none;">
+                            <div class="dumper-header">
+                                <div class="dumper-header-left">
+                                    <button id="dumperBackBtn" class="btn btn-secondary back-btn">
+                                        ← Back
+                                    </button>
+                                    <h2>🔍 WP Dump Viewer</h2>
+                                </div>
+                                <div class="dumper-actions">
+                                    <div class="dumper-info">
+                                        <span id="dumpCount" class="dump-count">0 dumps</span>
+                                        <span id="serverStatusIndicator" class="server-status">🔴 Offline</span>
+                                    </div>
+                                    <div class="dumper-controls">
+                                        <button id="clearAllDumpsBtn" class="btn btn-danger">
+                                            🗑️ Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dumper-content">
+                                <div id="dumpsContainer" class="dumps-container">
+                                    <div class="placeholder">
+                                        <div class="placeholder-icon">🔍</div>
+                                        <p>No dumps received yet</p>
+                                        <p>Start the dump server and send dumps from your WordPress application</p>
+                                        <div class="placeholder-actions">
+                                            <p><strong>Endpoint:</strong> <code>POST http://localhost:9913/dump</code></p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

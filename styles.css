@@ -1177,6 +1177,388 @@ body[data-theme="dark"] summary:hover {
     color: #63b3ed;
 }
 
+/* Dumper Styles */
+.dumper-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dump-server-info {
+    background: #f0f9ff;
+    border: 1px solid #0ea5e9;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+.dump-server-info p {
+    margin: 4px 0;
+    color: #0369a1;
+}
+
+.dump-endpoint {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.dump-endpoint code {
+    background: #e0f2fe;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Dumper Layout Structure */
+.dumper-viewer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0; /* Important for flex scrolling */
+}
+
+.dumper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    min-height: 60px;
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.dumper-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for flex scrolling */
+}
+
+.dumper-header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dumper-header-left h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.dumper-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.dumper-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dump-count {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.server-status {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.dumps-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    background: #f9fafb;
+    min-height: 0; /* Important for flex scrolling */
+    max-height: 100%; /* Ensure it doesn't exceed container */
+    /* Main container scrolling - this is where all scrolling happens */
+}
+
+.dumps-container .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+    min-height: 300px;
+}
+
+.dumps-container .placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.7;
+}
+
+.dumps-container .placeholder p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+.dumps-container .placeholder code {
+    background: #e5e7eb;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+}
+
+.dump-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: visible; /* Allow content to expand fully */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.dump-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dump-meta {
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    color: #6b7280;
+}
+
+.dump-content {
+    padding: 16px;
+    overflow-x: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #fafafa;
+    border-radius: 4px;
+    margin: 8px;
+    /* Removed max-height and overflow-y to prevent individual scrolling */
+}
+
+.dump-content pre {
+    margin: 0;
+    padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+.sf-dump {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+}
+
+/* Symfony dump styling improvements */
+.sf-dump-note {
+    color: #6366f1;
+    font-weight: 600;
+}
+
+.sf-dump-key {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.sf-dump-str {
+    color: #059669;
+}
+
+.sf-dump-num {
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.sf-dump samp {
+    background: none;
+    font-family: inherit;
+}
+
+/* Laravel dump specific styling */
+.laravel-dump {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 8px 0;
+    /* No max-height or overflow to allow full content display */
+}
+
+.laravel-dump pre {
+    margin: 0;
+    padding: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.sf-dump-class {
+    color: #6f42c1;
+    font-weight: 600;
+}
+
+.sf-dump-private {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.sf-dump-protected {
+    color: #fd7e14;
+    font-weight: 500;
+}
+
+.sf-dump-public {
+    color: #198754;
+    font-weight: 500;
+}
+
+.sf-dump-const {
+    color: #6610f2;
+    font-weight: 600;
+    font-style: italic;
+}
+
+.sf-dump-index {
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+.dump-source {
+    background: #e7f3ff;
+    border: 1px solid #b3d9ff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 11px;
+    color: #0056b3;
+}
+
+/* Dark mode for dumper */
+body[data-theme="dark"] .dump-server-info {
+    background: rgba(14, 165, 233, 0.1);
+    border-color: #0ea5e9;
+}
+
+body[data-theme="dark"] .dump-server-info p {
+    color: #38bdf8;
+}
+
+body[data-theme="dark"] .dump-endpoint code {
+    background: rgba(14, 165, 233, 0.2);
+    color: #38bdf8;
+}
+
+body[data-theme="dark"] .dumper-header {
+    background: #1a1a1a;
+    border-bottom-color: #404040;
+}
+
+body[data-theme="dark"] .dumper-header-left h2 {
+    color: #ffffff;
+}
+
+body[data-theme="dark"] .dump-count {
+    background: #404040;
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] .dumps-container {
+    background: #2d2d2d;
+}
+
+body[data-theme="dark"] .dump-card {
+    background: #3a3a3a;
+    border-color: #505050;
+}
+
+body[data-theme="dark"] .dump-meta {
+    background: #2d2d2d;
+    border-bottom-color: #505050;
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"] .dump-content {
+    color: #e0e0e0;
+    background: #2d2d2d;
+}
+
+body[data-theme="dark"] .sf-dump-note {
+    color: #a78bfa;
+}
+
+body[data-theme="dark"] .sf-dump-key {
+    color: #f87171;
+}
+
+body[data-theme="dark"] .sf-dump-str {
+    color: #34d399;
+}
+
+body[data-theme="dark"] .sf-dump-num {
+    color: #60a5fa;
+}
+
+/* Dark mode for Laravel dump */
+body[data-theme="dark"] .laravel-dump {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+body[data-theme="dark"] .sf-dump-class {
+    color: #c084fc;
+}
+
+body[data-theme="dark"] .sf-dump-private {
+    color: #f87171;
+}
+
+body[data-theme="dark"] .sf-dump-protected {
+    color: #fb923c;
+}
+
+body[data-theme="dark"] .sf-dump-public {
+    color: #4ade80;
+}
+
+body[data-theme="dark"] .sf-dump-const {
+    color: #a855f7;
+}
+
+body[data-theme="dark"] .sf-dump-index {
+    color: #60a5fa;
+}
+
+body[data-theme="dark"] .dump-source {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+    color: #93c5fd;
+}
+
 .placeholder {
     display: flex;
     flex-direction: column;

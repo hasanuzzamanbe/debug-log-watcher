@@ -26,7 +26,11 @@
     "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
-    "chokidar": "^3.5.3"
+    "chokidar": "^3.5.3",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   },
   "build": {
     "appId": "com.debuglogwatcher.app",
