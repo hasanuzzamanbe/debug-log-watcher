@@ -2232,6 +2232,19 @@ body[data-theme="dark"] .toast.info {
 .install-info p {
     margin: 8px 0;
     font-size: 14px;
+    line-height: 1.5;
+}
+
+.install-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.install-actions .btn {
+    min-width: 140px;
 }
 
 /* Update button states */
@@ -2267,6 +2280,10 @@ body[data-theme="dark"] .install-info {
 
 body[data-theme="dark"] .install-info h3 {
     color: #4ade80;
+}
+
+body[data-theme="dark"] .install-info p {
+    color: #d1d5db;
 }
 
 body[data-theme="dark"] .progress-bar {

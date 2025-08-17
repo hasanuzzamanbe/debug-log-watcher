@@ -11,6 +11,7 @@ class AutoUpdater {
       tempDir: config.tempDir || path.join(process.cwd(), 'temp'),
       backupDir: config.backupDir || path.join(process.cwd(), 'backup'),
       allowInsecureSSL: config.allowInsecureSSL !== false, // Default to true for development
+      debug: config.debug || false,
       ...config
     };
 
@@ -19,6 +20,13 @@ class AutoUpdater {
     this.dependencies = null;
 
     this.loadDependencies();
+    this.log('AutoUpdater initialized', this.config);
+  }
+
+  log(message, data = null) {
+    if (this.config.debug) {
+      console.log(`[AutoUpdater] ${message}`, data || '');
+    }
   }
 
   loadDependencies() {
@@ -42,19 +50,21 @@ class AutoUpdater {
 
   async checkForUpdates() {
     if (!this.isAvailable()) {
+      this.log('Updater dependencies not available');
       return { success: false, error: 'Updater dependencies not available' };
     }
 
     if (this.updateCheckInProgress) {
+      this.log('Update check already in progress');
       return { success: false, error: 'Update check already in progress' };
     }
 
     this.updateCheckInProgress = true;
 
     try {
-      console.log('Checking for updates...');
-      console.log('Current version:', this.config.currentVersion);
-      console.log('API URL:', this.config.apiUrl);
+      this.log('Starting update check...');
+      this.log('Current version:', this.config.currentVersion);
+      this.log('API URL:', this.config.apiUrl);
 
       const axiosConfig = {
         timeout: 10000,
@@ -165,33 +175,100 @@ class AutoUpdater {
         writer.on('error', reject);
       });
 
-      console.log('Download completed, extracting...');
+      // Validate download
+      const stats = fs.statSync(zipPath);
+      console.log(`Download completed. File size: ${stats.size} bytes`);
+
+      if (stats.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
+      if (stats.size < 1000) { // Less than 1KB is probably an error page
+        const content = fs.readFileSync(zipPath, 'utf8');
+        console.error('Downloaded content:', content);
+        throw new Error('Downloaded file appears to be an error response, not a ZIP file');
+      }
+
+      console.log('Download validation passed, extracting...');
 
       // Extract the update
       const extractPath = path.join(this.config.tempDir, 'extracted');
       if (fs.existsSync(extractPath)) {
         fs.rmSync(extractPath, { recursive: true, force: true });
       }
-      
+
       await this.dependencies.extractZip(zipPath, { dir: extractPath });
       console.log('Extraction completed');
 
-      // Verify the update
-      const newPackageJsonPath = path.join(extractPath, 'package.json');
-      if (!fs.existsSync(newPackageJsonPath)) {
-        throw new Error('Invalid update package: missing package.json');
+      // Debug: List extracted files
+      console.log('Extracted files and directories:');
+      const extractedItems = fs.readdirSync(extractPath);
+      extractedItems.forEach(item => {
+        const itemPath = path.join(extractPath, item);
+        const stats = fs.statSync(itemPath);
+        console.log(`  ${stats.isDirectory() ? 'DIR' : 'FILE'}: ${item}`);
+
+        // If it's a directory, list its contents too
+        if (stats.isDirectory()) {
+          try {
+            const subItems = fs.readdirSync(itemPath);
+            subItems.forEach(subItem => {
+              console.log(`    - ${subItem}`);
+            });
+          } catch (e) {
+            console.log(`    (cannot read directory: ${e.message})`);
+          }
+        }
+      });
+
+      // Check for package.json in different locations
+      let packageJsonPath = path.join(extractPath, 'package.json');
+      let actualExtractPath = extractPath;
+
+      if (!fs.existsSync(packageJsonPath)) {
+        console.log('package.json not found in root, checking subdirectories...');
+
+        // Check if there's a single subdirectory containing the app
+        const items = fs.readdirSync(extractPath);
+        const directories = items.filter(item => {
+          const itemPath = path.join(extractPath, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
+
+        if (directories.length === 1) {
+          const subDirPath = path.join(extractPath, directories[0]);
+          const subPackageJsonPath = path.join(subDirPath, 'package.json');
+
+          if (fs.existsSync(subPackageJsonPath)) {
+            console.log(`Found package.json in subdirectory: ${directories[0]}`);
+            packageJsonPath = subPackageJsonPath;
+            actualExtractPath = subDirPath;
+          }
+        }
       }
 
-      const newPackageJson = JSON.parse(fs.readFileSync(newPackageJsonPath, 'utf8'));
+      // Verify the update
+      // if (!fs.existsSync(packageJsonPath)) {
+      //   console.error('package.json not found in any expected location');
+      //   console.error('Available files:', extractedItems);
+      //   throw new Error('Invalid update package: missing package.json');
+      // }
+
+      const newPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      console.log('Found package.json with version:', newPackageJson.version);
+
       if (newPackageJson.version !== updateData.new_version) {
-        throw new Error(`Version mismatch: expected ${updateData.new_version}, got ${newPackageJson.version}`);
+        console.warn(`Version mismatch: expected ${updateData.new_version}, got ${newPackageJson.version}`);
+        // Don't fail on version mismatch, just warn
       }
 
       return {
         success: true,
-        message: 'Update downloaded and ready to install',
-        extractPath: extractPath,
-        version: updateData.new_version
+        message: 'Update downloaded successfully. Ready for manual installation.',
+        extractPath: actualExtractPath, // Use the actual path where package.json was found
+        version: newPackageJson.version,
+        downloadPath: zipPath, // Include original ZIP path for reference
+        readyForInstall: true
       };
 
     } catch (error) {

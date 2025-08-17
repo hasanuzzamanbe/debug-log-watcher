@@ -36,8 +36,11 @@ const windowManager = new WindowManager(app);
 const dumpServer = new DumpServer({ port: 9913 });
 const autoUpdater = new AutoUpdater({
   apiUrl: 'https://wpminers.com/?fluent-cart=get_license_version&item_id=2740&license_key=wpd_8356eb0c0f04cf1ab41dbe29282a9af9',
+  // Use local test server for testing manual installation workflow
+  // Production API:
   currentVersion: require('./package.json').version,
-  allowInsecureSSL: true // Allow insecure SSL for development domains
+  allowInsecureSSL: true, // Allow insecure SSL for development domains
+  debug: true // Enable debug logging
 });
 
 let mainWindow;

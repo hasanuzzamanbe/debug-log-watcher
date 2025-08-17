@@ -1452,18 +1452,58 @@ async function downloadUpdate() {
     downloadProgress.style.display = 'block';
     updateDetails.style.display = 'none';
 
+    // Update progress text
+    if (progressText) {
+      progressText.textContent = 'Downloading update package...';
+    }
+
     // Start download
     const result = await ipcRenderer.invoke('download-update', updateData);
 
     if (result.success) {
-      // Download successful
+      // Download successful - store for manual installation
       extractPath = result.extractPath;
 
-      // Hide progress, show install ready
+      // Hide progress, show install ready section
       downloadProgress.style.display = 'none';
       installReady.style.display = 'block';
 
-      showToast('Update downloaded successfully!', 'success');
+      // Update install ready section with more details
+      const installInfo = installReady.querySelector('.install-info');
+      if (installInfo) {
+        installInfo.innerHTML = `
+          <h3>✅ Update Downloaded Successfully</h3>
+          <p><strong>Version:</strong> ${result.version}</p>
+          <p><strong>Status:</strong> Ready for manual installation</p>
+          <p><strong>⚠️ Important:</strong> The application will restart after installation.</p>
+          <p>Click "Install Update" when you're ready to apply the changes.</p>
+          <div class="install-actions">
+            <button id="installUpdateBtn" class="btn btn-primary">
+              🚀 Install Update Now
+            </button>
+            <button id="installLaterBtn" class="btn btn-secondary">
+              ⏰ Install Later
+            </button>
+          </div>
+        `;
+
+        // Re-attach event listeners for new buttons
+        const newInstallBtn = installInfo.querySelector('#installUpdateBtn');
+        const installLaterBtn = installInfo.querySelector('#installLaterBtn');
+
+        if (newInstallBtn) {
+          newInstallBtn.addEventListener('click', installUpdate);
+        }
+
+        if (installLaterBtn) {
+          installLaterBtn.addEventListener('click', () => {
+            hideUpdateModal();
+            showToast('Update will be available for installation next time you check for updates.', 'info');
+          });
+        }
+      }
+
+      showToast('Update downloaded successfully! Ready for installation.', 'success');
     } else {
       // Download failed
       downloadProgress.style.display = 'none';
@@ -1476,32 +1516,64 @@ async function downloadUpdate() {
     updateDetails.style.display = 'block';
     showToast(`Download error: ${error.message}`, 'error');
   } finally {
-    // Reset button
+    // Reset download button
     downloadUpdateBtn.disabled = false;
     downloadUpdateBtn.textContent = '📥 Download Update';
   }
 }
 
 async function installUpdate() {
-  if (!extractPath || !installUpdateBtn) return;
+  if (!extractPath) return;
+
+  // Find the current install button (might be dynamically created)
+  const currentInstallBtn = document.querySelector('#installUpdateBtn');
+  if (!currentInstallBtn) return;
 
   try {
-    installUpdateBtn.disabled = true;
-    installUpdateBtn.textContent = '🚀 Installing...';
+    // Show confirmation dialog
+    const confirmed = confirm(
+      'Are you sure you want to install the update?\n\n' +
+      'The application will restart automatically after installation.\n' +
+      'Make sure to save any unsaved work before proceeding.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    currentInstallBtn.disabled = true;
+    currentInstallBtn.textContent = '🚀 Installing...';
+
+    // Show progress
+    showToast('Installing update... Please wait.', 'info');
 
     const result = await ipcRenderer.invoke('install-update', extractPath);
 
     if (result.success) {
-      showToast('Update installed! Application will restart...', 'success');
+      showToast('Update installed successfully! Application will restart in 3 seconds...', 'success');
       hideUpdateModal();
+
+      // Show countdown
+      let countdown = 3;
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          showToast(`Application will restart in ${countdown} seconds...`, 'info');
+        } else {
+          clearInterval(countdownInterval);
+          showToast('Restarting application...', 'info');
+        }
+      }, 1000);
+
     } else {
       showToast(`Installation failed: ${result.error}`, 'error');
+      currentInstallBtn.disabled = false;
+      currentInstallBtn.textContent = '🚀 Install Update Now';
     }
   } catch (error) {
     showToast(`Installation error: ${error.message}`, 'error');
-  } finally {
-    installUpdateBtn.disabled = false;
-    installUpdateBtn.textContent = '🚀 Install Update';
+    currentInstallBtn.disabled = false;
+    currentInstallBtn.textContent = '🚀 Install Update Now';
   }
 }
 

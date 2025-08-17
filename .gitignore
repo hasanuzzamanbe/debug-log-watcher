@@ -265,3 +265,5 @@ $RECYCLE.BIN/
 .Trashes
 ehthumbs.db
 Thumbs.db
+*.zip
+/backup
