@@ -1,6 +1,6 @@
 # 🚀 Deployment Guide
 
-This guide covers all aspects of building and deploying the Debug Log Watcher application for macOS.
+This guide covers all aspects of building and deploying the WP Debugger application for macOS.
 
 ## 📋 Prerequisites
 
@@ -64,10 +64,10 @@ ls -la dist/
 
 After a successful build, you'll find these files in the `dist/` directory:
 
-- **`Debug Log Watcher-1.0.0-arm64.dmg`** - DMG installer for Apple Silicon
-- **`Debug Log Watcher-1.0.0-arm64-mac.zip`** - ZIP archive for Apple Silicon
-- **`Debug Log Watcher-1.0.0-x64.dmg`** - DMG installer for Intel Macs
-- **`Debug Log Watcher-1.0.0-x64-mac.zip`** - ZIP archive for Intel Macs
+- **`WP Debugger-1.0.0-arm64.dmg`** - DMG installer for Apple Silicon
+- **`WP Debugger-1.0.0-arm64-mac.zip`** - ZIP archive for Apple Silicon
+- **`WP Debugger-1.0.0-x64.dmg`** - DMG installer for Intel Macs
+- **`WP Debugger-1.0.0-x64-mac.zip`** - ZIP archive for Intel Macs
 - **`RELEASE_NOTES.md`** - Auto-generated release notes
 
 ## 🔐 Code Signing (Optional)
@@ -142,7 +142,7 @@ class DebugLogWatcher < Formula
   url "https://github.com/yourusername/debug-log-watcher/releases/download/v1.0.0/Debug%20Log%20Watcher-1.0.0-arm64.dmg"
   sha256 "your-sha256-hash"
   
-  app "Debug Log Watcher.app"
+  app "WP Debugger.app"
 end
 ```
 
@@ -216,7 +216,7 @@ Before releasing:
 
 ## 🎉 Success!
 
-Your Debug Log Watcher app is now ready for distribution! Users can:
+Your WP Debugger app is now ready for distribution! Users can:
 
 1. Download the DMG file
 2. Drag to Applications folder

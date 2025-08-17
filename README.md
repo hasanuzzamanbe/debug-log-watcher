@@ -1,8 +1,8 @@
-# Debug Log Watcher
+# WP Debugger
 
 A native macOS application for monitoring WordPress debug.log files and receiving instant notifications when new log entries appear.
 
-![Debug Log Watcher](assets/icon.png)
+![WP Debugger](assets/icon.png)
 
 > **Monitor WordPress debug logs in real-time with instant macOS notifications**
 

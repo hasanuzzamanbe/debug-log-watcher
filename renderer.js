@@ -872,7 +872,7 @@ function updateHomeContent() {
     homeContent.innerHTML = `
       <div class="placeholder">
         <div class="placeholder-icon">📄</div>
-        <p>Welcome to Debug Log Watcher</p>
+        <p>Welcome to WP Debugger</p>
         <p>Select a log file from the sidebar to start monitoring</p>
         <div class="placeholder-actions">
           <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
