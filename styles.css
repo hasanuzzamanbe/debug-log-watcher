@@ -1216,6 +1216,8 @@ body[data-theme="dark"] summary:hover {
     flex-direction: column;
     overflow: hidden;
     min-height: 0; /* Important for flex scrolling */
+    height: 100%; /* Ensure full height */
+    max-height: 100vh; /* Constrain to viewport height */
 }
 
 .dumper-header {
@@ -1235,6 +1237,8 @@ body[data-theme="dark"] summary:hover {
     display: flex;
     flex-direction: column;
     min-height: 0; /* Important for flex scrolling */
+    height: calc(100vh - 140px); /* Calculate height minus header */
+    max-height: calc(100vh - 140px);
 }
 
 .dumper-header-left {
@@ -1278,13 +1282,17 @@ body[data-theme="dark"] summary:hover {
 
 .dumps-container {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto !important; /* Force scrolling */
     overflow-x: hidden;
     padding: 20px;
     background: #f9fafb;
     min-height: 0; /* Important for flex scrolling */
-    max-height: 100%; /* Ensure it doesn't exceed container */
+    max-height: calc(100vh - 200px); /* Constrain height to force scrolling */
+    height: calc(100vh - 200px); /* Force specific height */
     /* Main container scrolling - this is where all scrolling happens */
+
+    /* Debug: Force scrollable area */
+    position: relative;
 }
 
 .dumps-container .placeholder {
@@ -1557,6 +1565,18 @@ body[data-theme="dark"] .dump-source {
     background: rgba(59, 130, 246, 0.1);
     border-color: #3b82f6;
     color: #93c5fd;
+}
+
+/* Force dumper view to take full height */
+#dumperViewContent {
+    height: 100% !important;
+    max-height: 100vh !important;
+}
+
+/* Ensure content area gives full height to dumper */
+.content-area:has(#dumperViewContent[style*="display: block"]) {
+    height: 100vh;
+    max-height: 100vh;
 }
 
 .placeholder {
