@@ -15,6 +15,9 @@
                     <p>Enable advanced debugging features in WordPress!</p>
                 </div>
                 <div class="header-right">
+                    <button id="checkUpdateBtn" class="header-btn" title="Check for updates">
+                        <span id="updateBtnText">🔄</span>
+                    </button>
                     <button id="sidebarToggle" class="header-btn" title="Toggle Sidebar">☰</button>
                     <button id="darkModeToggle" class="header-btn" title="Toggle Dark Mode">🌙</button>
                 </div>
@@ -251,6 +254,64 @@
             <div class="modal-footer">
                 <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
                 <button id="addBtn" class="btn btn-primary">Add File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal -->
+    <div id="updateModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="updateModalTitle">Check for Updates</h2>
+                <button id="updateModalClose" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="updateCheckContent">
+                    <div class="update-info">
+                        <p><strong>Current Version:</strong> <span id="currentVersionText">Loading...</span></p>
+                        <p id="updateStatus">Click "Check for Updates" to see if a new version is available.</p>
+                    </div>
+                    <div id="updateDetails" style="display: none;">
+                        <div class="update-details">
+                            <h3>Update Available!</h3>
+                            <p><strong>Latest Version:</strong> <span id="latestVersionText"></span></p>
+                            <p><strong>Release Date:</strong> <span id="releaseDateText"></span></p>
+                            <div class="update-actions">
+                                <button id="downloadUpdateBtn" class="btn btn-primary">
+                                    📥 Download Update
+                                </button>
+                                <button id="viewChangelogBtn" class="btn btn-secondary">
+                                    📋 View Changelog
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="downloadProgress" style="display: none;">
+                        <div class="progress-info">
+                            <h3>Downloading Update...</h3>
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill"></div>
+                            </div>
+                            <p id="progressText">Preparing download...</p>
+                        </div>
+                    </div>
+                    <div id="installReady" style="display: none;">
+                        <div class="install-info">
+                            <h3>✅ Update Ready to Install</h3>
+                            <p>The update has been downloaded successfully. Click "Install Update" to apply the changes.</p>
+                            <p><strong>⚠️ Warning:</strong> The application will restart after installation.</p>
+                            <button id="installUpdateBtn" class="btn btn-primary">
+                                🚀 Install Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="checkUpdatesBtn" class="btn btn-primary">
+                    🔄 Check for Updates
+                </button>
+                <button id="updateCancelBtn" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>

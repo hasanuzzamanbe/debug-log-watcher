@@ -60,6 +60,29 @@ let isDumpServerRunning = false;
 let dumps = [];
 let currentView = 'home'; // 'home', 'log', 'dumper'
 
+// Updater elements and state
+const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+const updateBtnText = document.getElementById('updateBtnText');
+const updateModal = document.getElementById('updateModal');
+const updateModalClose = document.getElementById('updateModalClose');
+const updateCancelBtn = document.getElementById('updateCancelBtn');
+const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+const currentVersionText = document.getElementById('currentVersionText');
+const updateStatus = document.getElementById('updateStatus');
+const updateDetails = document.getElementById('updateDetails');
+const latestVersionText = document.getElementById('latestVersionText');
+const releaseDateText = document.getElementById('releaseDateText');
+const downloadUpdateBtn = document.getElementById('downloadUpdateBtn');
+const viewChangelogBtn = document.getElementById('viewChangelogBtn');
+const downloadProgress = document.getElementById('downloadProgress');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const installReady = document.getElementById('installReady');
+const installUpdateBtn = document.getElementById('installUpdateBtn');
+
+let updateData = null;
+let extractPath = null;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Content Loaded');
@@ -80,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUserPreferences();
     await loadWatchedFiles();
     await loadDumpServerStatus();
+    await loadUpdaterStatus();
     setupEventListeners();
 });
 
@@ -176,6 +200,49 @@ function setupEventListeners() {
     if (clearAllDumpsBtn) {
         clearAllDumpsBtn.addEventListener('click', () => {
             clearAllDumps();
+        });
+    }
+
+    // Updater event listeners
+    if (checkUpdateBtn) {
+        checkUpdateBtn.addEventListener('click', () => {
+            showUpdateModal();
+        });
+    }
+
+    if (updateModalClose) {
+        updateModalClose.addEventListener('click', () => {
+            hideUpdateModal();
+        });
+    }
+
+    if (updateCancelBtn) {
+        updateCancelBtn.addEventListener('click', () => {
+            hideUpdateModal();
+        });
+    }
+
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', () => {
+            checkForUpdates();
+        });
+    }
+
+    if (downloadUpdateBtn) {
+        downloadUpdateBtn.addEventListener('click', () => {
+            downloadUpdate();
+        });
+    }
+
+    if (viewChangelogBtn) {
+        viewChangelogBtn.addEventListener('click', () => {
+            viewChangelog();
+        });
+    }
+
+    if (installUpdateBtn) {
+        installUpdateBtn.addEventListener('click', () => {
+            installUpdate();
         });
     }
     
@@ -1221,6 +1288,227 @@ async function loadDumpServerStatus() {
     updateDumpServerUI();
   } catch (error) {
     console.error('Error loading dump server status:', error);
+  }
+}
+
+// Updater Functions
+async function loadUpdaterStatus() {
+  try {
+    const status = await ipcRenderer.invoke('get-updater-status');
+
+    if (currentVersionText) {
+      currentVersionText.textContent = status.currentVersion;
+    }
+
+    if (!status.available) {
+      console.warn('Updater not available');
+      if (checkUpdateBtn) {
+        checkUpdateBtn.disabled = true;
+        checkUpdateBtn.title = 'Updater not available';
+        updateBtnText.textContent = '❌';
+      }
+      return;
+    }
+
+    // Check for updates automatically on startup (optional)
+    // setTimeout(() => checkForUpdatesBackground(), 5000);
+
+  } catch (error) {
+    console.error('Error loading updater status:', error);
+  }
+}
+
+function showUpdateModal() {
+  if (updateModal) {
+    updateModal.style.display = 'flex';
+    resetUpdateModal();
+  }
+}
+
+function hideUpdateModal() {
+  if (updateModal) {
+    updateModal.style.display = 'none';
+  }
+}
+
+function resetUpdateModal() {
+  // Hide all sections
+  if (updateDetails) updateDetails.style.display = 'none';
+  if (downloadProgress) downloadProgress.style.display = 'none';
+  if (installReady) installReady.style.display = 'none';
+
+  // Reset status
+  if (updateStatus) {
+    updateStatus.textContent = 'Click "Check for Updates" to see if a new version is available.';
+  }
+
+  // Reset button states
+  if (checkUpdatesBtn) {
+    checkUpdatesBtn.disabled = false;
+    checkUpdatesBtn.textContent = '🔄 Check for Updates';
+  }
+}
+
+async function checkForUpdates() {
+  if (!checkUpdatesBtn) return;
+
+  try {
+    // Update UI
+    checkUpdatesBtn.disabled = true;
+    checkUpdatesBtn.textContent = '🔄 Checking...';
+    updateStatus.textContent = 'Checking for updates...';
+
+    // Add spinning animation to header button
+    if (checkUpdateBtn) {
+      checkUpdateBtn.classList.add('checking');
+    }
+
+    const result = await ipcRenderer.invoke('check-for-updates');
+
+    if (result.success) {
+      if (result.hasUpdate) {
+        // Update available
+        updateData = result.updateData;
+        showUpdateAvailable(result);
+
+        // Update header button
+        if (checkUpdateBtn) {
+          checkUpdateBtn.classList.remove('checking');
+          checkUpdateBtn.classList.add('update-available');
+          updateBtnText.textContent = '🔄';
+          checkUpdateBtn.title = `Update available: v${result.latestVersion}`;
+        }
+
+        showToast(`Update available: v${result.latestVersion}`, 'info');
+      } else {
+        // No update available
+        updateStatus.textContent = `You're running the latest version (${result.currentVersion}).`;
+
+        // Reset header button
+        if (checkUpdateBtn) {
+          checkUpdateBtn.classList.remove('checking');
+          updateBtnText.textContent = '✅';
+          checkUpdateBtn.title = 'Up to date';
+        }
+
+        showToast('You\'re running the latest version!', 'success');
+      }
+    } else {
+      // Error checking for updates
+      updateStatus.textContent = `Error checking for updates: ${result.error}`;
+
+      // Reset header button
+      if (checkUpdateBtn) {
+        checkUpdateBtn.classList.remove('checking');
+        updateBtnText.textContent = '❌';
+        checkUpdateBtn.title = 'Error checking for updates';
+      }
+
+      showToast(`Error checking for updates: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    updateStatus.textContent = `Error: ${error.message}`;
+    showToast(`Error checking for updates: ${error.message}`, 'error');
+  } finally {
+    // Reset button
+    checkUpdatesBtn.disabled = false;
+    checkUpdatesBtn.textContent = '🔄 Check for Updates';
+
+    // Remove spinning animation
+    if (checkUpdateBtn) {
+      checkUpdateBtn.classList.remove('checking');
+    }
+  }
+}
+
+function showUpdateAvailable(result) {
+  if (!updateDetails) return;
+
+  // Show update details
+  updateDetails.style.display = 'block';
+
+  // Update text content
+  if (latestVersionText) {
+    latestVersionText.textContent = result.latestVersion;
+  }
+
+  if (releaseDateText && result.updateData.last_updated) {
+    const date = new Date(result.updateData.last_updated);
+    releaseDateText.textContent = date.toLocaleDateString();
+  }
+
+  updateStatus.textContent = `A new version (${result.latestVersion}) is available!`;
+}
+
+async function downloadUpdate() {
+  if (!updateData || !downloadUpdateBtn) return;
+
+  try {
+    // Update UI
+    downloadUpdateBtn.disabled = true;
+    downloadUpdateBtn.textContent = '📥 Downloading...';
+
+    // Show progress section
+    downloadProgress.style.display = 'block';
+    updateDetails.style.display = 'none';
+
+    // Start download
+    const result = await ipcRenderer.invoke('download-update', updateData);
+
+    if (result.success) {
+      // Download successful
+      extractPath = result.extractPath;
+
+      // Hide progress, show install ready
+      downloadProgress.style.display = 'none';
+      installReady.style.display = 'block';
+
+      showToast('Update downloaded successfully!', 'success');
+    } else {
+      // Download failed
+      downloadProgress.style.display = 'none';
+      updateDetails.style.display = 'block';
+
+      showToast(`Download failed: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    downloadProgress.style.display = 'none';
+    updateDetails.style.display = 'block';
+    showToast(`Download error: ${error.message}`, 'error');
+  } finally {
+    // Reset button
+    downloadUpdateBtn.disabled = false;
+    downloadUpdateBtn.textContent = '📥 Download Update';
+  }
+}
+
+async function installUpdate() {
+  if (!extractPath || !installUpdateBtn) return;
+
+  try {
+    installUpdateBtn.disabled = true;
+    installUpdateBtn.textContent = '🚀 Installing...';
+
+    const result = await ipcRenderer.invoke('install-update', extractPath);
+
+    if (result.success) {
+      showToast('Update installed! Application will restart...', 'success');
+      hideUpdateModal();
+    } else {
+      showToast(`Installation failed: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showToast(`Installation error: ${error.message}`, 'error');
+  } finally {
+    installUpdateBtn.disabled = false;
+    installUpdateBtn.textContent = '🚀 Install Update';
+  }
+}
+
+function viewChangelog() {
+  if (updateData && updateData.url) {
+    // Open changelog URL in external browser
+    require('electron').shell.openExternal(updateData.url);
   }
 }
 

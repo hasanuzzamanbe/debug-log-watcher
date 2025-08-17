@@ -76,3 +76,13 @@ if (logTextContent) {
 3. **Event listeners**: Check if click handlers are attached
 4. **View switching**: Check if view state changes properly
 5. **Flex layout**: Check if CSS flex properties are correct
+
+
+## dev debug
+# Debug main process
+npm start -- --inspect=9229
+
+# Or with breakpoints
+npm start -- --inspect-brk=9229
+
+Then open Chrome and go to: chrome://inspect

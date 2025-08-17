@@ -26,36 +26,26 @@ try {
   }
 }
 
-// Dump server imports with error handling
-let express, http, Server, bodyParser, cors;
-let dumpServerAvailable = false;
+// Import modules
+const AutoUpdater = require('./src/updater/updater');
+const DumpServer = require('./src/dump-server/dump-server');
+const WindowManager = require('./src/utils/window-manager');
 
-try {
-  express = require('express');
-  http = require('http');
-  const socketIO = require("socket.io");
-  Server = socketIO.Server;
-  bodyParser = require('body-parser');
-  cors = require('cors');
-  dumpServerAvailable = true;
-  console.log('Dump server dependencies loaded successfully');
-} catch (error) {
-  console.error('Failed to load dump server dependencies:', error.message);
-  console.log('Dump server functionality will be disabled');
-  dumpServerAvailable = false;
-}
+// Initialize modules
+const windowManager = new WindowManager(app);
+const dumpServer = new DumpServer({ port: 9913 });
+const autoUpdater = new AutoUpdater({
+  apiUrl: 'https://wpminers.com/?fluent-cart=get_license_version&item_id=2740&license_key=wpd_8356eb0c0f04cf1ab41dbe29282a9af9',
+  currentVersion: require('./package.json').version,
+  allowInsecureSSL: true // Allow insecure SSL for development domains
+});
 
 let mainWindow;
 let tray;
 let watchers = new Map();
 let isQuitting = false;
 
-// Dump server variables
-let dumpServer = null;
-let dumpApp = null;
-let dumpIO = null;
-let isDumpServerRunning = false;
-const DUMP_PORT = 9913;
+// These variables are now handled by the modules
 
 // Store watched files configuration
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -79,42 +69,16 @@ function createWindow() {
     mainWindow.show();
   });
 
-  mainWindow.on('close', (event) => {
-    console.log('Window close event triggered, isQuitting:', isQuitting);
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-      console.log('Window hidden instead of closed');
-    } else {
-      console.log('App is quitting, allowing window to close');
-    }
-  });
+  // Set up window management
+  windowManager.setMainWindow(mainWindow);
+  dumpServer.setMainWindow(mainWindow);
+  windowManager.setupWindowEvents(mainWindow, isQuitting);
 
   // Create tray
   createTray();
 }
 
-function showMainWindow() {
-  console.log('showMainWindow called, mainWindow exists:', !!mainWindow);
-  if (mainWindow) {
-    console.log('Window state - isMinimized:', mainWindow.isMinimized(), 'isVisible:', mainWindow.isVisible());
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-      console.log('Window restored from minimized state');
-    }
-    mainWindow.show();
-    mainWindow.focus();
-    console.log('Window shown and focused');
-
-    // On macOS, also bring the app to front
-    if (process.platform === 'darwin') {
-      app.focus();
-      console.log('App brought to front on macOS');
-    }
-  } else {
-    console.log('mainWindow is null, cannot show window');
-  }
-}
+// Window management is now handled by WindowManager class
 
 function createTray() {
   const iconPath = path.join(__dirname, 'assets', 'icon.png');
@@ -127,13 +91,13 @@ function createTray() {
     {
       label: 'Show App',
       click: () => {
-        showMainWindow();
+        windowManager.showMainWindow();
       }
     },
     {
       label: 'Add Log File',
       click: () => {
-        showMainWindow();
+        windowManager.showMainWindow();
         mainWindow.webContents.send('show-add-dialog');
       }
     },
@@ -151,11 +115,11 @@ function createTray() {
   
   // Handle tray clicks to show window
   tray.on('click', () => {
-    showMainWindow();
+    windowManager.showMainWindow();
   });
 
   tray.on('double-click', () => {
-    showMainWindow();
+    windowManager.showMainWindow();
   });
 }
 
@@ -538,168 +502,48 @@ ipcMain.handle('hide-window', () => {
   }
 });
 
-// Laravel/Symfony dump formatter
-function formatLaravelDump(rawHtml) {
-  try {
-    // Clean up the raw dump text and convert to HTML
-    let formatted = rawHtml
-      .replace(/\n/g, '<br>')
-      .replace(/\s{2,}/g, '&nbsp;&nbsp;')
-      .replace(/\{#(\d+)/g, '<span class="sf-dump-note">{#$1</span>')
-      .replace(/#(\w+):/g, '<span class="sf-dump-private">#$1:</span>')
-      .replace(/\+(\w+):/g, '<span class="sf-dump-public">+$1:</span>')
-      .replace(/-(\w+):/g, '<span class="sf-dump-protected">-$1:</span>')
-      .replace(/"([^"]+)":/g, '"<span class="sf-dump-key">$1</span>":')
-      .replace(/=> "([^"]+)"/g, '=> "<span class="sf-dump-str">$1</span>"')
-      .replace(/=> (\d+)/g, '=> <span class="sf-dump-num">$1</span>')
-      .replace(/=> (null|true|false)/g, '=> <span class="sf-dump-const">$1</span>')
-      .replace(/array:(\d+)/g, '<span class="sf-dump-note">array:$1</span>')
-      .replace(/\[([^\]]+)\]/g, '[<span class="sf-dump-index">$1</span>]')
-      .replace(/(FluentCart\\[^\s{]+)/g, '<span class="sf-dump-class">$1</span>');
-
-    return `<div class="sf-dump laravel-dump"><pre>${formatted}</pre></div>`;
-  } catch (error) {
-    console.error('Error formatting Laravel dump:', error);
-    return `<div class="sf-dump laravel-dump"><pre>${rawHtml}</pre></div>`;
-  }
-}
-
-// Dump Server Functions
-function startDumpServer() {
-  if (!dumpServerAvailable) {
-    console.error('Dump server dependencies not available');
-    return { success: false, error: 'Dump server dependencies not available. Please reinstall the application.' };
-  }
-
-  if (isDumpServerRunning) {
-    console.log('Dump server is already running');
-    return { success: true, message: 'Dump server is already running' };
-  }
-
-  try {
-    dumpApp = express();
-    dumpServer = http.createServer(dumpApp);
-    dumpIO = new Server(dumpServer, {
-      cors: {
-        origin: "*",
-      }
-    });
-
-    dumpApp.use(cors());
-    dumpApp.use(bodyParser.json({ limit: '50mb' }));
-
-    dumpApp.post('/dump', (req, res) => {
-      const rawData = req.body;
-      console.log('Raw dump data received:', rawData);
-
-      // Process different dump formats
-      let content = '';
-      let time = rawData.time || new Date().toISOString();
-
-      if (rawData.html) {
-        // Laravel/Symfony dump format with html field
-        content = formatLaravelDump(rawData.html);
-        if (rawData.time) {
-          time = rawData.time;
-        }
-      } else if (rawData.content) {
-        content = rawData.content;
-      } else if (rawData.dump) {
-        content = rawData.dump;
-      } else if (rawData.data) {
-        content = rawData.data;
-      } else {
-        content = JSON.stringify(rawData, null, 2);
-      }
-
-      // Add source information if available
-      if (rawData.source) {
-        const sourceInfo = `<div class="dump-source">
-          <strong>Source:</strong> ${rawData.source.file}:${rawData.source.line}
-        </div>`;
-        content = sourceInfo + content;
-      }
-
-      const dumpData = {
-        time: time,
-        content: content,
-        source: rawData.source || null
-      };
-
-      console.log(`Processed dump data:`, dumpData);
-
-      // Broadcast to Socket.IO clients
-      dumpIO.emit('new-dump', dumpData);
-
-      // Send to renderer process
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('new-dump', dumpData);
-      }
-
-      console.log(`Received and broadcasted a new dump at ${dumpData.time}`);
-      res.status(200).send('OK');
-    });
-
-    dumpIO.on('connection', (socket) => {
-      console.log('A dump viewer connected.');
-      socket.on('disconnect', () => {
-        console.log('A dump viewer disconnected.');
-      });
-    });
-
-    dumpServer.listen(DUMP_PORT, () => {
-      console.log(`WP Dump Server is running on http://localhost:${DUMP_PORT}`);
-      isDumpServerRunning = true;
-    });
-
-    return { success: true, message: `Dump server started on port ${DUMP_PORT}` };
-  } catch (error) {
-    console.error('Error starting dump server:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-function stopDumpServer() {
-  if (!isDumpServerRunning) {
-    return { success: true, message: 'Dump server is not running' };
-  }
-
-  try {
-    if (dumpServer) {
-      dumpServer.close(() => {
-        console.log('Dump server stopped');
-      });
-    }
-    isDumpServerRunning = false;
-    dumpServer = null;
-    dumpApp = null;
-    dumpIO = null;
-    return { success: true, message: 'Dump server stopped' };
-  } catch (error) {
-    console.error('Error stopping dump server:', error);
-    return { success: false, error: error.message };
-  }
-}
+// All functionality is now handled by the modules
 
 // IPC handlers for dump server
 ipcMain.handle('start-dump-server', () => {
-  return startDumpServer();
+  return dumpServer.start();
 });
 
 ipcMain.handle('stop-dump-server', () => {
-  return stopDumpServer();
+  return dumpServer.stop();
 });
 
 ipcMain.handle('get-dump-server-status', () => {
-  return {
-    running: isDumpServerRunning,
-    port: DUMP_PORT,
-    available: dumpServerAvailable
-  };
+  return dumpServer.getStatus();
 });
 
 ipcMain.handle('show-window', () => {
-  showMainWindow();
+  windowManager.showMainWindow();
+});
+
+// Updater IPC handlers
+ipcMain.handle('check-for-updates', async () => {
+  return await autoUpdater.checkForUpdates();
+});
+
+ipcMain.handle('download-update', async (event, updateData) => {
+  return await autoUpdater.downloadUpdate(updateData);
+});
+
+ipcMain.handle('install-update', async (event, extractPath) => {
+  const result = await autoUpdater.applyUpdate(extractPath);
+  if (result.success) {
+    // Schedule app restart after a short delay
+    setTimeout(() => {
+      app.relaunch();
+      app.exit();
+    }, 2000);
+  }
+  return result;
+});
+
+ipcMain.handle('get-updater-status', () => {
+  return autoUpdater.getStatus();
 });
 
 // App lifecycle
@@ -736,7 +580,7 @@ app.whenReady().then(() => {
     } else if (mainWindow) {
       console.log('Window exists but hidden, showing it');
       // Show the existing window if it's hidden
-      showMainWindow();
+      windowManager.showMainWindow();
     }
   });
 });
