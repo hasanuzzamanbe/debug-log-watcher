@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Debug Log Watcher - Deployment Script
+# WP Debugger - Deployment Script
 # This script automates the build and deployment process for macOS
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Debug Log Watcher deployment..."
+echo "🚀 Starting WP Debugger deployment..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -90,7 +90,7 @@ fi
 # Optional: Create release notes
 print_status "Creating release notes..."
 cat > dist/RELEASE_NOTES.md << EOF
-# Debug Log Watcher v$(node -p "require('./package.json').version")
+# WP Debugger v$(node -p "require('./package.json').version")
 
 ## What's New
 - Real-time WordPress debug.log monitoring

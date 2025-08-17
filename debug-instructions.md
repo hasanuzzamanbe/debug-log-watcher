@@ -2,7 +2,7 @@
 
 ## Steps to Test:
 
-1. **Open the Debug Log Watcher application**
+1. **Open the WP Debugger application**
 2. **Open Developer Tools** (Cmd+Option+I on Mac)
 3. **Add the test log file**:
    - Click "Add Log File"

@@ -46,22 +46,22 @@ if [ -d "dist" ]; then
   ls -la dist/
   
   # Check if the main executable exists
-  if [ -f "dist/mac/Debug Log Watcher.app/Contents/MacOS/Debug Log Watcher" ]; then
+  if [ -f "dist/mac/WP Debugger.app/Contents/MacOS/WP Debugger" ]; then
     echo ""
     echo "✅ Main executable found"
     
     # Check if node_modules are included
-    if [ -d "dist/mac/Debug Log Watcher.app/Contents/Resources/app.asar.unpacked/node_modules" ]; then
+    if [ -d "dist/mac/WP Debugger.app/Contents/Resources/app.asar.unpacked/node_modules" ]; then
       echo "✅ Node modules unpacked correctly"
       
       # Check specific modules
-      if [ -d "dist/mac/Debug Log Watcher.app/Contents/Resources/app.asar.unpacked/node_modules/express" ]; then
+      if [ -d "dist/mac/WP Debugger.app/Contents/Resources/app.asar.unpacked/node_modules/express" ]; then
         echo "✅ Express module included"
       else
         echo "❌ Express module missing"
       fi
       
-      if [ -d "dist/mac/Debug Log Watcher.app/Contents/Resources/app.asar.unpacked/node_modules/socket.io" ]; then
+      if [ -d "dist/mac/WP Debugger.app/Contents/Resources/app.asar.unpacked/node_modules/socket.io" ]; then
         echo "✅ Socket.IO module included"
       else
         echo "❌ Socket.IO module missing"
@@ -84,4 +84,4 @@ echo "To create a full distribution build, run:"
 echo "  npm run build:mac"
 echo ""
 echo "To test the built app:"
-echo "  open 'dist/mac/Debug Log Watcher.app'"
+echo "  open 'dist/mac/WP Debugger.app'"

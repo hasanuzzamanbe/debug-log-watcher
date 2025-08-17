@@ -73,7 +73,7 @@ async function runTest() {
   console.log('🔍 Testing WP Dump Server Integration...\n');
   
   console.log('📡 Sending test dumps to http://localhost:9913/dump');
-  console.log('Make sure the dump server is started in the Debug Log Watcher app\n');
+  console.log('Make sure the dump server is started in the WP Debugger app\n');
   
   for (let i = 0; i < sampleDumps.length; i++) {
     console.log(`Sending dump ${i + 1}/${sampleDumps.length}...`);

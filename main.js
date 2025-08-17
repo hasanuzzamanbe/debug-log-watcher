@@ -80,9 +80,13 @@ function createWindow() {
   });
 
   mainWindow.on('close', (event) => {
+    console.log('Window close event triggered, isQuitting:', isQuitting);
     if (!isQuitting) {
       event.preventDefault();
       mainWindow.hide();
+      console.log('Window hidden instead of closed');
+    } else {
+      console.log('App is quitting, allowing window to close');
     }
   });
 
@@ -90,24 +94,46 @@ function createWindow() {
   createTray();
 }
 
+function showMainWindow() {
+  console.log('showMainWindow called, mainWindow exists:', !!mainWindow);
+  if (mainWindow) {
+    console.log('Window state - isMinimized:', mainWindow.isMinimized(), 'isVisible:', mainWindow.isVisible());
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+      console.log('Window restored from minimized state');
+    }
+    mainWindow.show();
+    mainWindow.focus();
+    console.log('Window shown and focused');
+
+    // On macOS, also bring the app to front
+    if (process.platform === 'darwin') {
+      app.focus();
+      console.log('App brought to front on macOS');
+    }
+  } else {
+    console.log('mainWindow is null, cannot show window');
+  }
+}
+
 function createTray() {
   const iconPath = path.join(__dirname, 'assets', 'icon.png');
   const icon = nativeImage.createFromPath(iconPath);
   
   tray = new Tray(icon);
-  tray.setToolTip('Debug Log Watcher');
+  tray.setToolTip('WP Debugger');
   
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show App',
       click: () => {
-        mainWindow.show();
+        showMainWindow();
       }
     },
     {
       label: 'Add Log File',
       click: () => {
-        mainWindow.show();
+        showMainWindow();
         mainWindow.webContents.send('show-add-dialog');
       }
     },
@@ -123,8 +149,13 @@ function createTray() {
   
   tray.setContextMenu(contextMenu);
   
+  // Handle tray clicks to show window
+  tray.on('click', () => {
+    showMainWindow();
+  });
+
   tray.on('double-click', () => {
-    mainWindow.show();
+    showMainWindow();
   });
 }
 
@@ -668,18 +699,7 @@ ipcMain.handle('get-dump-server-status', () => {
 });
 
 ipcMain.handle('show-window', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-    mainWindow.show();
-    mainWindow.focus();
-
-    // On macOS, also bring the app to front
-    if (process.platform === 'darwin') {
-      app.focus();
-    }
-  }
+  showMainWindow();
 });
 
 // App lifecycle
@@ -706,8 +726,17 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
+    console.log('App activate event triggered');
+    console.log('Number of windows:', BrowserWindow.getAllWindows().length);
+    console.log('mainWindow exists:', !!mainWindow);
+
     if (BrowserWindow.getAllWindows().length === 0) {
+      console.log('No windows exist, creating new window');
       createWindow();
+    } else if (mainWindow) {
+      console.log('Window exists but hidden, showing it');
+      // Show the existing window if it's hidden
+      showMainWindow();
     }
   });
 });

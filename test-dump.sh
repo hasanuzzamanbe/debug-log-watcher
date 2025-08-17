@@ -6,7 +6,7 @@ DUMP_URL="http://localhost:9913/dump"
 
 echo "🔍 Testing WP Dump Server Integration with curl..."
 echo "📡 Sending test dumps to $DUMP_URL"
-echo "Make sure the dump server is started in the Debug Log Watcher app"
+echo "Make sure the dump server is started in the WP Debugger app"
 echo ""
 
 # Test 1: Standard dump with content field
