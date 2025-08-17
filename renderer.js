@@ -836,11 +836,11 @@ function updateHomeContent() {
             `;
           }).join('')}
         </div>
-        <div class="overview-actions">
-          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">
-            + Add Another Log File
-          </button>
-        </div>
+<!--        <div class="overview-actions">-->
+<!--          <button class="btn btn-primary" onclick="document.getElementById('addFileBtn').click()">-->
+<!--            + Add Another Log File-->
+<!--          </button>-->
+<!--        </div>-->
       </div>
     `;
   }
@@ -1125,6 +1125,21 @@ async function loadDumpServerStatus() {
   try {
     const status = await ipcRenderer.invoke('get-dump-server-status');
     isDumpServerRunning = status.running;
+
+    // Check if dump server dependencies are available
+    if (!status.available) {
+      console.warn('Dump server dependencies not available');
+      if (dumpServerStatus) {
+        dumpServerStatus.textContent = '❌ Unavailable';
+      }
+      if (toggleDumpServerBtn) {
+        toggleDumpServerBtn.disabled = true;
+        toggleDumpServerBtn.title = 'Dump server dependencies not available';
+      }
+      showToast('Dump server dependencies not available. Please reinstall the application.', 'error');
+      return;
+    }
+
     updateDumpServerUI();
   } catch (error) {
     console.error('Error loading dump server status:', error);

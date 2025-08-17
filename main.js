@@ -26,12 +26,24 @@ try {
   }
 }
 
-// Dump server imports
-const express = require('express');
-const http = require('http');
-const { Server } = require("socket.io");
-const bodyParser = require('body-parser');
-const cors = require('cors');
+// Dump server imports with error handling
+let express, http, Server, bodyParser, cors;
+let dumpServerAvailable = false;
+
+try {
+  express = require('express');
+  http = require('http');
+  const socketIO = require("socket.io");
+  Server = socketIO.Server;
+  bodyParser = require('body-parser');
+  cors = require('cors');
+  dumpServerAvailable = true;
+  console.log('Dump server dependencies loaded successfully');
+} catch (error) {
+  console.error('Failed to load dump server dependencies:', error.message);
+  console.log('Dump server functionality will be disabled');
+  dumpServerAvailable = false;
+}
 
 let mainWindow;
 let tray;
@@ -523,6 +535,11 @@ function formatLaravelDump(rawHtml) {
 
 // Dump Server Functions
 function startDumpServer() {
+  if (!dumpServerAvailable) {
+    console.error('Dump server dependencies not available');
+    return { success: false, error: 'Dump server dependencies not available. Please reinstall the application.' };
+  }
+
   if (isDumpServerRunning) {
     console.log('Dump server is already running');
     return { success: true, message: 'Dump server is already running' };
@@ -645,7 +662,8 @@ ipcMain.handle('stop-dump-server', () => {
 ipcMain.handle('get-dump-server-status', () => {
   return {
     running: isDumpServerRunning,
-    port: DUMP_PORT
+    port: DUMP_PORT,
+    available: dumpServerAvailable
   };
 });
 
