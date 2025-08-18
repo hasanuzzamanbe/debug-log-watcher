@@ -27,7 +27,6 @@ Go to setting > privacy > WP Debugger > open anyway
 Step 3:
 Enable Notification for better debugging
 
-
 ### Prerequisites
 
 - macOS 10.14 or later
