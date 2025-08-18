@@ -18,7 +18,7 @@ A native macOS application for monitoring WordPress debug.log files and receivin
 
 ## Installation
 You can download your application from here.
-[https://drive.google.com/drive/u/4/folders/1xMLx-Fmnf5P1YendcKRmPzzbiVyZvqeT](Debug Log.dmg files)
+[Debug Log.dmg files](https://drive.google.com/drive/u/4/folders/1xMLx-Fmnf5P1YendcKRmPzzbiVyZvqeT)
 
 Run this command in the terminal:
 `sudo xattr -rd com.apple.quarantine "/Applications/WP Debugger.app"`
