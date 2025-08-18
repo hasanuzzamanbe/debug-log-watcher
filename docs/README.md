@@ -17,6 +17,16 @@ A native macOS application for monitoring WordPress debug.log files and receivin
 - 🔄 **Auto-refresh**: Automatically updates log content when changes are detected
 
 ## Installation
+Step 1:
+You can download your application from here.
+[Debug Log.dmg files](https://drive.google.com/drive/u/4/folders/1xMLx-Fmnf5P1YendcKRmPzzbiVyZvqeT)
+
+Step 2:
+Go to setting > privacy > WP Debugger > open anyway
+
+Step 3:
+Enable Notification for better debugging
+
 
 ### Prerequisites
 
