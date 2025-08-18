@@ -13,8 +13,6 @@
     "build:mac-dist": "npm run build:mac && ./scripts/prepare-macos-distribution.sh",
     "build:optimized": "npm run optimize && npm run build:mac",
     "build:small": "npm run clean && npm install --production && npm run build:mac",
-    "build:minimal": "./scripts/build-minimal.sh",
-    "build:compressed": "./scripts/build-compressed.sh",
     "dev": "electron . --dev",
     "pack": "npm run rebuild && electron-builder --dir",
     "dist": "npm run rebuild && electron-builder",
@@ -113,7 +111,13 @@
       "minimumSystemVersion": "10.13.0"
     },
     "dmg": {
+      "compression": "bzip2",
       "format": "ULFO"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "compression": "maximum"
     }
   }
 }
