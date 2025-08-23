@@ -15,7 +15,6 @@ const logText = document.getElementById('logText');
 const logTextContent = document.getElementById('logTextContent');
 const refreshBtn = document.getElementById('refreshBtn');
 const testNotificationBtn = document.getElementById('testNotificationBtn');
-// const clearBtn = document.getElementById('clearBtn'); // Removed from UI
 const clearLogBtn = document.getElementById('clearLogBtn');
 const exportLogBtn = document.getElementById('exportLogBtn');
 const quickClearBtn = document.getElementById('quickClearBtn');
@@ -83,6 +82,25 @@ const installUpdateBtn = document.getElementById('installUpdateBtn');
 let updateData = null;
 let extractPath = null;
 
+// AI Analysis elements and state
+const aiModal = document.getElementById('aiModal');
+const aiModalClose = document.getElementById('aiModalClose');
+const aiCancelBtn = document.getElementById('aiCancelBtn');
+const aiSetupSection = document.getElementById('aiSetupSection');
+const aiAnalysisSection = document.getElementById('aiAnalysisSection');
+const geminiApiKeyInput = document.getElementById('geminiApiKey');
+const saveApiKeyBtn = document.getElementById('saveApiKey');
+const aiErrorPreview = document.getElementById('aiErrorPreview');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const quickFixBtn = document.getElementById('quickFixBtn');
+const explainBtn = document.getElementById('explainBtn');
+const aiResults = document.getElementById('aiResults');
+const aiAnalysisResult = document.getElementById('aiAnalysisResult');
+const aiLoading = document.getElementById('aiLoading');
+
+let currentErrorLog = null;
+let geminiApiKey = null;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Content Loaded');
@@ -104,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadWatchedFiles();
     await loadDumpServerStatus();
     await loadUpdaterStatus();
+    await loadGeminiStatus();
     setupEventListeners();
 });
 
@@ -243,6 +262,52 @@ function setupEventListeners() {
     if (installUpdateBtn) {
         installUpdateBtn.addEventListener('click', () => {
             installUpdate();
+        });
+    }
+
+    // AI Analysis event listeners
+    if (aiModalClose) {
+        aiModalClose.addEventListener('click', () => {
+            hideAiModal();
+        });
+    }
+
+    if (aiCancelBtn) {
+        aiCancelBtn.addEventListener('click', () => {
+            hideAiModal();
+        });
+    }
+
+    if (saveApiKeyBtn) {
+        saveApiKeyBtn.addEventListener('click', () => {
+            saveGeminiApiKey();
+        });
+    }
+
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', () => {
+            analyzeErrorWithAI();
+        });
+    }
+
+    if (quickFixBtn) {
+        quickFixBtn.addEventListener('click', () => {
+            getQuickFix();
+        });
+    }
+
+    if (explainBtn) {
+        explainBtn.addEventListener('click', () => {
+            explainError();
+        });
+    }
+
+    // Handle Enter key in API key input
+    if (geminiApiKeyInput) {
+        geminiApiKeyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveGeminiApiKey();
+            }
         });
     }
     
@@ -794,7 +859,10 @@ function formatPhpError(message) {
     }
   }
 
-  return `<span class="log-error ${className}">${escapeHtml(message)}</span>`;
+  // Add AI icon for error analysis
+  const aiIcon = `<button class="ai-icon" onclick="showAiModal('${escapeHtml(message).replace(/'/g, '\\\'')}')" title="Analyze with AI">🤖</button>`;
+
+  return `<span class="log-error ${className}">${escapeHtml(message)}${aiIcon}</span>`;
 }
 
 function formatArray(message) {
@@ -1582,6 +1650,218 @@ function viewChangelog() {
     // Open changelog URL in external browser
     require('electron').shell.openExternal(updateData.url);
   }
+}
+
+// AI Analysis Functions
+async function loadGeminiStatus() {
+  try {
+    const status = await ipcRenderer.invoke('get-gemini-status');
+
+    if (status.hasApiKey) {
+      geminiApiKey = true; // Don't store the actual key
+    }
+
+    console.log('Gemini AI status:', status);
+  } catch (error) {
+    console.error('Error loading Gemini status:', error);
+  }
+}
+
+function showAiModal(errorLog) {
+  if (!aiModal) return;
+
+  currentErrorLog = errorLog;
+  aiModal.style.display = 'flex';
+
+  // Check if API key is set
+  if (geminiApiKey) {
+    showAnalysisSection();
+  } else {
+    showSetupSection();
+  }
+}
+
+// Make showAiModal globally accessible
+window.showAiModal = showAiModal;
+
+function hideAiModal() {
+  if (aiModal) {
+    aiModal.style.display = 'none';
+    resetAiModal();
+  }
+}
+
+function showSetupSection() {
+  if (aiSetupSection) aiSetupSection.style.display = 'block';
+  if (aiAnalysisSection) aiAnalysisSection.style.display = 'none';
+}
+
+function showAnalysisSection() {
+  if (aiSetupSection) aiSetupSection.style.display = 'none';
+  if (aiAnalysisSection) aiAnalysisSection.style.display = 'block';
+
+  // Show error preview
+  if (aiErrorPreview && currentErrorLog) {
+    aiErrorPreview.textContent = currentErrorLog.substring(0, 500) + (currentErrorLog.length > 500 ? '...' : '');
+  }
+}
+
+function resetAiModal() {
+  if (aiResults) aiResults.style.display = 'none';
+  if (aiLoading) aiLoading.style.display = 'none';
+  if (aiAnalysisResult) aiAnalysisResult.innerHTML = '';
+}
+
+async function saveGeminiApiKey() {
+  if (!geminiApiKeyInput || !saveApiKeyBtn) return;
+
+  const apiKey = geminiApiKeyInput.value.trim();
+  if (!apiKey) {
+    showToast('Please enter a valid API key', 'error');
+    return;
+  }
+
+  try {
+    saveApiKeyBtn.disabled = true;
+    saveApiKeyBtn.textContent = '💾 Saving...';
+
+    const result = await ipcRenderer.invoke('set-gemini-api-key', apiKey);
+
+    if (result) {
+      geminiApiKey = true;
+      geminiApiKeyInput.value = '';
+      showToast('API key saved successfully!', 'success');
+      showAnalysisSection();
+    } else {
+      showToast('Failed to save API key. Please check if it\'s valid.', 'error');
+    }
+  } catch (error) {
+    showToast(`Error saving API key: ${error.message}`, 'error');
+  } finally {
+    saveApiKeyBtn.disabled = false;
+    saveApiKeyBtn.textContent = '💾 Save Key';
+  }
+}
+
+async function analyzeErrorWithAI() {
+  if (!currentErrorLog) return;
+
+  try {
+    showAiLoading();
+
+    const context = {
+      language: 'PHP',
+      framework: 'WordPress',
+      logType: 'error',
+      timestamp: new Date().toISOString()
+    };
+
+    const result = await ipcRenderer.invoke('analyze-error', currentErrorLog, context);
+
+    if (result.success) {
+      showAiResult(result.analysis, '🔍 AI Analysis');
+    } else {
+      showToast(`AI Analysis failed: ${result.error}`, 'error');
+      hideAiLoading();
+    }
+  } catch (error) {
+    showToast(`Error during AI analysis: ${error.message}`, 'error');
+    hideAiLoading();
+  }
+}
+
+async function getQuickFix() {
+  if (!currentErrorLog) return;
+
+  try {
+    showAiLoading();
+
+    const context = {
+      language: 'PHP',
+      framework: 'WordPress'
+    };
+
+    const result = await ipcRenderer.invoke('suggest-fix', currentErrorLog, context);
+
+    if (result.success) {
+      showAiResult(result.suggestion, '⚡ Quick Fix');
+    } else {
+      showToast(`Quick fix failed: ${result.error}`, 'error');
+      hideAiLoading();
+    }
+  } catch (error) {
+    showToast(`Error getting quick fix: ${error.message}`, 'error');
+    hideAiLoading();
+  }
+}
+
+async function explainError() {
+  if (!currentErrorLog) return;
+
+  try {
+    showAiLoading();
+
+    const context = {
+      language: 'PHP',
+      framework: 'WordPress'
+    };
+
+    const result = await ipcRenderer.invoke('explain-error', currentErrorLog, context);
+
+    if (result.success) {
+      showAiResult(result.explanation, '💡 Error Explanation');
+    } else {
+      showToast(`Error explanation failed: ${result.error}`, 'error');
+      hideAiLoading();
+    }
+  } catch (error) {
+    showToast(`Error explaining error: ${error.message}`, 'error');
+    hideAiLoading();
+  }
+}
+
+function showAiLoading() {
+  if (aiLoading) aiLoading.style.display = 'block';
+  if (aiResults) aiResults.style.display = 'none';
+}
+
+function hideAiLoading() {
+  if (aiLoading) aiLoading.style.display = 'none';
+}
+
+function showAiResult(content, title) {
+  hideAiLoading();
+
+  if (aiAnalysisResult) {
+    // Format the AI response with proper HTML
+    const formattedContent = formatAiResponse(content);
+    aiAnalysisResult.innerHTML = `<h3>${title}</h3>${formattedContent}`;
+  }
+
+  if (aiResults) {
+    aiResults.style.display = 'block';
+  }
+}
+
+function formatAiResponse(content) {
+  // Convert markdown-like formatting to HTML
+  let formatted = content
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/^\d+\.\s/gm, '<li>')
+    .replace(/^-\s/gm, '<li>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+
+  // Wrap in paragraphs
+  formatted = '<p>' + formatted + '</p>';
+
+  // Fix list items
+  formatted = formatted.replace(/(<li>.*?)<br>/g, '$1</li>');
+
+  return formatted;
 }
 
 // IPC Listeners

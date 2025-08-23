@@ -258,6 +258,61 @@
         </div>
     </div>
 
+    <!-- AI Analysis Modal -->
+    <div id="aiModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="aiModalTitle">🤖 AI Error Analysis</h2>
+                <button id="aiModalClose" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="aiSetupSection" style="display: none;">
+                    <div class="ai-setup">
+                        <h3>🔑 Setup Gemini AI</h3>
+                        <p>To use AI error analysis, you need a free Google Gemini API key:</p>
+                        <ol>
+                            <li>Go to <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio (https://makersuite.google.com/app/apikey)</a></li>
+                            <li>Create a free API key</li>
+                            <li>Paste it below:</li>
+                        </ol>
+                        <div class="api-key-input">
+                            <input type="password" id="geminiApiKey" placeholder="Enter your Gemini API key..." />
+                            <button id="saveApiKey" class="btn btn-primary">💾 Save Key</button>
+                        </div>
+                        <p class="api-note">🔒 Your API key is stored locally and never shared.</p>
+                    </div>
+                </div>
+                <div id="aiAnalysisSection" style="display: none;">
+                    <div class="ai-analysis">
+                        <div class="error-preview">
+                            <h4>📋 Error Log:</h4>
+                            <pre id="aiErrorPreview"></pre>
+                        </div>
+                        <div class="ai-actions">
+                            <button id="analyzeBtn" class="btn btn-primary">🔍 Analyze Error</button>
+                            <button id="quickFixBtn" class="btn btn-secondary">⚡ Quick Fix</button>
+                            <button id="explainBtn" class="btn btn-secondary">💡 Explain</button>
+                        </div>
+                        <div id="aiResults" style="display: none;">
+                            <div class="ai-response">
+                                <div id="aiAnalysisResult"></div>
+                            </div>
+                        </div>
+                        <div id="aiLoading" style="display: none;">
+                            <div class="loading-spinner">
+                                <div class="spinner"></div>
+                                <p>🤖 AI is analyzing your error...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="aiCancelBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Modal -->
     <div id="updateModal" class="modal" style="display: none;">
         <div class="modal-content">

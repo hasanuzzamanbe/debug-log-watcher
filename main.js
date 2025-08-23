@@ -30,6 +30,7 @@ try {
 const AutoUpdater = require('./src/updater/updater');
 const DumpServer = require('./src/dump-server/dump-server');
 const WindowManager = require('./src/utils/window-manager');
+const GeminiAnalyzer = require('./src/ai/gemini-analyzer');
 
 // Initialize modules
 const windowManager = new WindowManager(app);
@@ -40,6 +41,10 @@ const autoUpdater = new AutoUpdater({
   // Production API:
   currentVersion: require('./package.json').version,
   allowInsecureSSL: true, // Allow insecure SSL for development domains
+  debug: true // Enable debug logging
+});
+
+const geminiAnalyzer = new GeminiAnalyzer({
   debug: true // Enable debug logging
 });
 
@@ -547,6 +552,31 @@ ipcMain.handle('install-update', async (event, extractPath) => {
 
 ipcMain.handle('get-updater-status', () => {
   return autoUpdater.getStatus();
+});
+
+// Gemini AI IPC handlers
+ipcMain.handle('set-gemini-api-key', (event, apiKey) => {
+  return geminiAnalyzer.setApiKey(apiKey);
+});
+
+ipcMain.handle('analyze-error', async (event, errorLog, context) => {
+  return await geminiAnalyzer.analyzeError(errorLog, context);
+});
+
+ipcMain.handle('suggest-fix', async (event, errorLog, context) => {
+  return await geminiAnalyzer.suggestFix(errorLog, context);
+});
+
+ipcMain.handle('explain-error', async (event, errorLog, context) => {
+  return await geminiAnalyzer.explainError(errorLog, context);
+});
+
+ipcMain.handle('get-gemini-status', () => {
+  return geminiAnalyzer.getStatus();
+});
+
+ipcMain.handle('list-gemini-models', async () => {
+  return await geminiAnalyzer.listAvailableModels();
 });
 
 // App lifecycle
