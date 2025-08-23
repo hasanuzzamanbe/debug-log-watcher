@@ -428,6 +428,22 @@ function setupEventListeners() {
                 console.error('No error log data found on AI icon');
             }
         }
+
+        // Event delegation for clickable file paths
+        if (e.target.classList.contains('clickable-file-path')) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const filePath = e.target.getAttribute('data-file-path');
+            const lineNumber = e.target.getAttribute('data-line-number');
+
+            if (filePath) {
+                console.log(`Opening file: ${filePath}${lineNumber ? ` at line ${lineNumber}` : ''}`);
+                openFileInEditor(filePath, lineNumber);
+            } else {
+                console.error('No file path data found on clickable path');
+            }
+        }
     });
     
     // Navigation
@@ -862,6 +878,25 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function makeFilePathsClickable(message) {
+  // Regex to match file paths with line numbers
+  // Matches patterns like: /path/to/file.php on line 123
+  // or /path/to/file.php:123
+  const filePathRegex = /([\/\\][\w\-\.\/\\]+\.(?:php|js|html|css|py|rb|java|cpp|c|h|ts|jsx|vue|go|rs|swift|kt|scala|pl|sh|bat|ps1|sql|xml|json|yaml|yml|ini|conf|log|txt))\s*(?:on line\s+(\d+)|:(\d+)|\((\d+)\))?/gi;
+
+  return message.replace(filePathRegex, (match, filePath, lineNum1, lineNum2, lineNum3) => {
+    const lineNumber = lineNum1 || lineNum2 || lineNum3;
+    const escapedPath = escapeHtml(filePath);
+    const escapedMatch = escapeHtml(match);
+
+    if (lineNumber) {
+      return `<span class="clickable-file-path" data-file-path="${escapedPath}" data-line-number="${lineNumber}" title="Click to open ${escapedPath} at line ${lineNumber}">${escapedMatch}</span>`;
+    } else {
+      return `<span class="clickable-file-path" data-file-path="${escapedPath}" title="Click to open ${escapedPath}">${escapedMatch}</span>`;
+    }
+  });
+}
+
 function formatLogContent(content) {
   try {
     // Split content into individual log entries
@@ -992,11 +1027,14 @@ function formatPhpError(message) {
     }
   }
 
+  // Make file paths clickable
+  let formattedMessage = makeFilePathsClickable(message);
+
   // Add AI icon for error analysis with better error handling
   const escapedMessage = escapeHtml(message).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
   const aiIcon = `<button class="ai-icon" data-error-log="${escapedMessage}" title="Analyze with AI">🤖</button>`;
 
-  return `<span class="log-error ${className}">${escapeHtml(message)}${aiIcon}</span>`;
+  return `<span class="log-error ${className}">${formattedMessage}${aiIcon}</span>`;
 }
 
 function formatArray(message) {
@@ -2044,6 +2082,41 @@ function formatAiResponse(content) {
   formatted = formatted.replace(/(<li>.*?)<br>/g, '$1</li>');
 
   return formatted;
+}
+
+// File opening functionality
+async function openFileInEditor(filePath, lineNumber = null) {
+  try {
+    console.log(`Attempting to open file: ${filePath}${lineNumber ? ` at line ${lineNumber}` : ''}`);
+
+    const result = await ipcRenderer.invoke('open-file-in-editor', filePath, lineNumber);
+
+    if (result.success) {
+      showToast(`Opened ${filePath}${lineNumber ? ` at line ${lineNumber}` : ''} in ${result.editor}`, 'success');
+      console.log(`✅ File opened successfully with ${result.editor}`);
+    } else {
+      showToast(`Failed to open file: ${result.error}`, 'error');
+      console.error(`❌ Failed to open file: ${result.error}`);
+
+      // Fallback: show file path in a modal for manual copying
+      showFilePathModal(filePath, lineNumber);
+    }
+  } catch (error) {
+    console.error('Error opening file:', error);
+    showToast(`Error opening file: ${error.message}`, 'error');
+
+    // Fallback: show file path in a modal for manual copying
+    showFilePathModal(filePath, lineNumber);
+  }
+}
+
+function showFilePathModal(filePath, lineNumber) {
+  const message = lineNumber
+    ? `File: ${filePath}\nLine: ${lineNumber}\n\nCopy this path to open manually in your editor.`
+    : `File: ${filePath}\n\nCopy this path to open manually in your editor.`;
+
+  // Simple alert for now - could be enhanced with a proper modal
+  alert(message);
 }
 
 // IPC Listeners

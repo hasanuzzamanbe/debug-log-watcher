@@ -589,6 +589,88 @@ ipcMain.handle('list-gemini-models', async () => {
   return await geminiAnalyzer.listAvailableModels();
 });
 
+// File opening IPC handlers
+ipcMain.handle('open-file-in-editor', async (event, filePath, lineNumber = null) => {
+  try {
+    const { spawn } = require('child_process');
+    const fs = require('fs');
+    const path = require('path');
+
+    console.log(`Opening file: ${filePath} at line: ${lineNumber}`);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.error(`File does not exist: ${filePath}`);
+      return { success: false, error: 'File does not exist' };
+    }
+
+    // Determine the platform and editor
+    const platform = process.platform;
+    let command, args;
+
+    if (platform === 'darwin') {
+      // macOS - try VS Code first, then other editors
+      const editors = [
+        { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'subl', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'atom', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'open', args: ['-t', filePath] } // Default text editor
+      ];
+
+      for (const editor of editors) {
+        try {
+          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
+          console.log(`Opened with ${editor.cmd}`);
+          return { success: true, editor: editor.cmd };
+        } catch (error) {
+          continue; // Try next editor
+        }
+      }
+    } else if (platform === 'win32') {
+      // Windows
+      const editors = [
+        { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'notepad++', args: lineNumber ? [`-n${lineNumber}`, filePath] : [filePath] },
+        { cmd: 'notepad', args: [filePath] }
+      ];
+
+      for (const editor of editors) {
+        try {
+          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
+          console.log(`Opened with ${editor.cmd}`);
+          return { success: true, editor: editor.cmd };
+        } catch (error) {
+          continue;
+        }
+      }
+    } else {
+      // Linux
+      const editors = [
+        { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'subl', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'gedit', args: lineNumber ? [`+${lineNumber}`, filePath] : [filePath] },
+        { cmd: 'nano', args: lineNumber ? [`+${lineNumber}`, filePath] : [filePath] }
+      ];
+
+      for (const editor of editors) {
+        try {
+          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
+          console.log(`Opened with ${editor.cmd}`);
+          return { success: true, editor: editor.cmd };
+        } catch (error) {
+          continue;
+        }
+      }
+    }
+
+    return { success: false, error: 'No suitable editor found' };
+
+  } catch (error) {
+    console.error('Error opening file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
