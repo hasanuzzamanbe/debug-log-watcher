@@ -592,9 +592,11 @@ ipcMain.handle('list-gemini-models', async () => {
 // File opening IPC handlers
 ipcMain.handle('open-file-in-editor', async (event, filePath, lineNumber = null) => {
   try {
-    const { spawn } = require('child_process');
+    const { spawn, exec } = require('child_process');
     const fs = require('fs');
     const path = require('path');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
 
     console.log(`Opening file: ${filePath} at line: ${lineNumber}`);
 
@@ -604,66 +606,120 @@ ipcMain.handle('open-file-in-editor', async (event, filePath, lineNumber = null)
       return { success: false, error: 'File does not exist' };
     }
 
+    // Function to check if command exists
+    const commandExists = async (cmd) => {
+      try {
+        if (process.platform === 'win32') {
+          await execAsync(`where ${cmd}`);
+        } else {
+          await execAsync(`which ${cmd}`);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // Function to try opening with an editor
+    const tryEditor = async (cmd, args) => {
+      try {
+        const exists = await commandExists(cmd);
+        if (!exists) {
+          console.log(`${cmd} not found in PATH`);
+          return false;
+        }
+
+        const child = spawn(cmd, args, {
+          detached: true,
+          stdio: 'ignore',
+          shell: true // Use shell to resolve PATH
+        });
+
+        child.unref(); // Don't keep the parent process alive
+        console.log(`Opened with ${cmd}`);
+        return true;
+      } catch (error) {
+        console.log(`Failed to open with ${cmd}:`, error.message);
+        return false;
+      }
+    };
+
     // Determine the platform and editor
     const platform = process.platform;
-    let command, args;
 
     if (platform === 'darwin') {
-      // macOS - try VS Code first, then other editors
+      // macOS - try editors in order
       const editors = [
         { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: '/usr/local/bin/code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
         { cmd: 'subl', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
-        { cmd: 'atom', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
-        { cmd: 'open', args: ['-t', filePath] } // Default text editor
+        { cmd: '/usr/local/bin/subl', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'atom', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] }
       ];
 
       for (const editor of editors) {
-        try {
-          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
-          console.log(`Opened with ${editor.cmd}`);
+        const success = await tryEditor(editor.cmd, editor.args);
+        if (success) {
           return { success: true, editor: editor.cmd };
-        } catch (error) {
-          continue; // Try next editor
         }
       }
+
+      // Fallback to system default
+      try {
+        const child = spawn('open', ['-t', filePath], { detached: true, stdio: 'ignore' });
+        child.unref();
+        console.log('Opened with system default text editor');
+        return { success: true, editor: 'system default' };
+      } catch (error) {
+        console.error('Failed to open with system default:', error);
+      }
+
     } else if (platform === 'win32') {
       // Windows
       const editors = [
         { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: 'code.cmd', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
         { cmd: 'notepad++', args: lineNumber ? [`-n${lineNumber}`, filePath] : [filePath] },
         { cmd: 'notepad', args: [filePath] }
       ];
 
       for (const editor of editors) {
-        try {
-          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
-          console.log(`Opened with ${editor.cmd}`);
+        const success = await tryEditor(editor.cmd, editor.args);
+        if (success) {
           return { success: true, editor: editor.cmd };
-        } catch (error) {
-          continue;
         }
       }
+
     } else {
       // Linux
       const editors = [
         { cmd: 'code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
+        { cmd: '/usr/bin/code', args: lineNumber ? ['-g', `${filePath}:${lineNumber}`] : [filePath] },
         { cmd: 'subl', args: lineNumber ? [`${filePath}:${lineNumber}`] : [filePath] },
         { cmd: 'gedit', args: lineNumber ? [`+${lineNumber}`, filePath] : [filePath] },
         { cmd: 'nano', args: lineNumber ? [`+${lineNumber}`, filePath] : [filePath] }
       ];
 
       for (const editor of editors) {
-        try {
-          spawn(editor.cmd, editor.args, { detached: true, stdio: 'ignore' });
-          console.log(`Opened with ${editor.cmd}`);
+        const success = await tryEditor(editor.cmd, editor.args);
+        if (success) {
           return { success: true, editor: editor.cmd };
-        } catch (error) {
-          continue;
         }
+      }
+
+      // Fallback to xdg-open
+      try {
+        const child = spawn('xdg-open', [filePath], { detached: true, stdio: 'ignore' });
+        child.unref();
+        console.log('Opened with system default');
+        return { success: true, editor: 'system default' };
+      } catch (error) {
+        console.error('Failed to open with xdg-open:', error);
       }
     }
 
-    return { success: false, error: 'No suitable editor found' };
+    return { success: false, error: 'No suitable editor found. Please install VS Code or another supported editor.' };
 
   } catch (error) {
     console.error('Error opening file:', error);

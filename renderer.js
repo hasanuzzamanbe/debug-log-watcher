@@ -2092,20 +2092,27 @@ async function openFileInEditor(filePath, lineNumber = null) {
     const result = await ipcRenderer.invoke('open-file-in-editor', filePath, lineNumber);
 
     if (result.success) {
-      showToast(`Opened ${filePath}${lineNumber ? ` at line ${lineNumber}` : ''} in ${result.editor}`, 'success');
+      const editorName = result.editor.includes('/') ? result.editor.split('/').pop() : result.editor;
+      showToast(`Opened in ${editorName}${lineNumber ? ` at line ${lineNumber}` : ''}`, 'success');
       console.log(`✅ File opened successfully with ${result.editor}`);
     } else {
-      showToast(`Failed to open file: ${result.error}`, 'error');
       console.error(`❌ Failed to open file: ${result.error}`);
 
-      // Fallback: show file path in a modal for manual copying
-      showFilePathModal(filePath, lineNumber);
+      // Show helpful error message based on the error
+      if (result.error.includes('No suitable editor found')) {
+        showToast('No code editor found. Install VS Code for best experience.', 'warning');
+        showEditorInstallModal(filePath, lineNumber);
+      } else if (result.error.includes('File does not exist')) {
+        showToast('File not found on this system', 'error');
+        showFilePathModal(filePath, lineNumber);
+      } else {
+        showToast(`Failed to open file: ${result.error}`, 'error');
+        showFilePathModal(filePath, lineNumber);
+      }
     }
   } catch (error) {
     console.error('Error opening file:', error);
     showToast(`Error opening file: ${error.message}`, 'error');
-
-    // Fallback: show file path in a modal for manual copying
     showFilePathModal(filePath, lineNumber);
   }
 }
@@ -2117,6 +2124,47 @@ function showFilePathModal(filePath, lineNumber) {
 
   // Simple alert for now - could be enhanced with a proper modal
   alert(message);
+}
+
+function showEditorInstallModal(filePath, lineNumber) {
+  const platform = navigator.platform.toLowerCase();
+  let installInstructions = '';
+
+  if (platform.includes('mac')) {
+    installInstructions = `To enable file opening, install VS Code:
+
+1. Download VS Code from: https://code.visualstudio.com/
+2. Install the app
+3. Open VS Code and run: View → Command Palette → "Shell Command: Install 'code' command in PATH"
+
+Alternative: Install via Homebrew:
+brew install --cask visual-studio-code`;
+  } else if (platform.includes('win')) {
+    installInstructions = `To enable file opening, install VS Code:
+
+1. Download VS Code from: https://code.visualstudio.com/
+2. During installation, check "Add to PATH"
+3. Restart the Debug Log Watcher app
+
+Alternative editors:
+- Notepad++ (https://notepad-plus-plus.org/)`;
+  } else {
+    installInstructions = `To enable file opening, install VS Code:
+
+1. Download VS Code from: https://code.visualstudio.com/
+2. Or install via package manager:
+   - Ubuntu/Debian: sudo snap install code --classic
+   - Fedora: sudo dnf install code
+   - Arch: sudo pacman -S code`;
+  }
+
+  const fullMessage = `${installInstructions}
+
+Current file: ${filePath}${lineNumber ? `\nLine: ${lineNumber}` : ''}
+
+Copy the path above to open manually.`;
+
+  alert(fullMessage);
 }
 
 // IPC Listeners
