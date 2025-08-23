@@ -77,6 +77,16 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // Add keyboard shortcut to open DevTools
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Cmd+Option+I on macOS or Ctrl+Shift+I on Windows/Linux
+    if ((input.meta && input.alt && input.key === 'i') ||
+        (input.control && input.shift && input.key === 'I') ||
+        input.key === 'F12') {
+      mainWindow.webContents.toggleDevTools();
+    }
+  });
+
   // Set up window management
   windowManager.setMainWindow(mainWindow);
   dumpServer.setMainWindow(mainWindow);

@@ -124,15 +124,110 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadUpdaterStatus();
     await loadGeminiStatus();
     setupEventListeners();
+
+    // Debug button functionality after setup
+    setTimeout(() => {
+        console.log('🔍 Button Diagnostic Report:');
+        console.log('============================');
+
+        const buttonChecks = [
+            { name: 'addFileBtn', element: addFileBtn },
+            { name: 'refreshBtn', element: refreshBtn },
+            { name: 'clearLogBtn', element: clearLogBtn },
+            { name: 'exportLogBtn', element: exportLogBtn },
+            { name: 'quickClearBtn', element: quickClearBtn },
+            { name: 'sidebarToggle', element: sidebarToggle },
+            { name: 'darkModeToggle', element: darkModeToggle },
+            { name: 'toggleDumpServerBtn', element: toggleDumpServerBtn },
+            { name: 'checkUpdateBtn', element: checkUpdateBtn },
+            { name: 'aiModalClose', element: aiModalClose },
+            { name: 'saveApiKeyBtn', element: saveApiKeyBtn },
+            { name: 'analyzeBtn', element: analyzeBtn },
+            { name: 'quickFixBtn', element: quickFixBtn },
+            { name: 'explainBtn', element: explainBtn }
+        ];
+
+        buttonChecks.forEach(({ name, element }) => {
+            if (!element) {
+                console.log(`❌ ${name} - Element NOT FOUND`);
+            } else {
+                const isVisible = element.offsetParent !== null;
+                const isDisabled = element.disabled;
+                const hasClickHandler = element.onclick || element.addEventListener;
+                console.log(`${isVisible && !isDisabled ? '✅' : '⚠️'} ${name} - Found (visible: ${isVisible}, disabled: ${isDisabled})`);
+            }
+        });
+
+        console.log('\n💡 To test a specific button, use: testButtonClick("buttonId")');
+
+        // Add global test function
+        window.testButtonClick = function(buttonId) {
+            const element = document.getElementById(buttonId);
+            if (element) {
+                console.log(`🧪 Testing ${buttonId}...`);
+                element.click();
+                console.log(`✅ ${buttonId} clicked successfully`);
+            } else {
+                console.log(`❌ ${buttonId} not found`);
+            }
+        };
+    }, 1000);
 });
 
 function setupEventListeners() {
-    // Modal controls
-    addFileBtn.addEventListener('click', () => showModal());
-    closeModal.addEventListener('click', () => hideModal());
-    cancelBtn.addEventListener('click', () => hideModal());
-    addBtn.addEventListener('click', () => addWatchedFile());
-    browseBtn.addEventListener('click', () => browseFile());
+    // Modal controls with error handling
+    if (addFileBtn) {
+        addFileBtn.addEventListener('click', () => {
+            try {
+                console.log('Add File button clicked');
+                showModal();
+            } catch (error) {
+                console.error('Error in Add File button:', error);
+            }
+        });
+    } else {
+        console.error('❌ addFileBtn not found');
+    }
+
+    if (closeModal) {
+        closeModal.addEventListener('click', () => {
+            try {
+                hideModal();
+            } catch (error) {
+                console.error('Error in Close Modal button:', error);
+            }
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            try {
+                hideModal();
+            } catch (error) {
+                console.error('Error in Cancel button:', error);
+            }
+        });
+    }
+
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            try {
+                addWatchedFile();
+            } catch (error) {
+                console.error('Error in Add button:', error);
+            }
+        });
+    }
+
+    if (browseBtn) {
+        browseBtn.addEventListener('click', () => {
+            try {
+                browseFile();
+            } catch (error) {
+                console.error('Error in Browse button:', error);
+            }
+        });
+    }
     
     // File input
     filePathInput.addEventListener('keypress', (e) => {
@@ -310,26 +405,64 @@ function setupEventListeners() {
             }
         });
     }
+
+    // Event delegation for dynamically generated AI icons
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('ai-icon')) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const errorLog = e.target.getAttribute('data-error-log');
+            if (errorLog) {
+                // Decode HTML entities back to original text
+                const decodedErrorLog = errorLog
+                    .replace(/&#39;/g, "'")
+                    .replace(/&quot;/g, '"')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&');
+
+                console.log('AI icon clicked, opening modal for:', decodedErrorLog.substring(0, 100) + '...');
+                showAiModal(decodedErrorLog);
+            } else {
+                console.error('No error log data found on AI icon');
+            }
+        }
+    });
     
     // Navigation
     backBtn.addEventListener('click', () => goBack());
 
 
 
-    // Sidebar toggle
-    sidebarToggle.addEventListener('click', () => {
-        toggleSidebar();
-    });
+    // Sidebar toggle with error handling
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            try {
+                console.log('Sidebar toggle clicked');
+                toggleSidebar();
+            } catch (error) {
+                console.error('Error in Sidebar toggle:', error);
+            }
+        });
+        console.log('✅ Sidebar toggle event listener attached');
+    } else {
+        console.error('❌ sidebarToggle element not found');
+    }
 
-    // Dark mode toggle
+    // Dark mode toggle with error handling
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', () => {
-            console.log('Dark mode button clicked');
-            toggleDarkMode();
+            try {
+                console.log('Dark mode button clicked');
+                toggleDarkMode();
+            } catch (error) {
+                console.error('Error in Dark mode toggle:', error);
+            }
         });
-        console.log('Dark mode toggle event listener attached');
+        console.log('✅ Dark mode toggle event listener attached');
     } else {
-        console.warn('darkModeToggle element not found');
+        console.error('❌ darkModeToggle element not found');
     }
     
     // Modal backdrop click
@@ -859,8 +992,9 @@ function formatPhpError(message) {
     }
   }
 
-  // Add AI icon for error analysis
-  const aiIcon = `<button class="ai-icon" onclick="showAiModal('${escapeHtml(message).replace(/'/g, '\\\'')}')" title="Analyze with AI">🤖</button>`;
+  // Add AI icon for error analysis with better error handling
+  const escapedMessage = escapeHtml(message).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  const aiIcon = `<button class="ai-icon" data-error-log="${escapedMessage}" title="Analyze with AI">🤖</button>`;
 
   return `<span class="log-error ${className}">${escapeHtml(message)}${aiIcon}</span>`;
 }
@@ -1668,26 +1802,74 @@ async function loadGeminiStatus() {
 }
 
 function showAiModal(errorLog) {
-  if (!aiModal) return;
+  console.log('🤖 showAiModal called with error log:', errorLog ? errorLog.substring(0, 100) + '...' : 'null');
+
+  if (!aiModal) {
+    console.error('❌ aiModal element not found');
+    return;
+  }
+
+  if (!errorLog) {
+    console.error('❌ No error log provided to AI modal');
+    return;
+  }
 
   currentErrorLog = errorLog;
   aiModal.style.display = 'flex';
 
+  console.log('✅ AI modal opened, checking API key status...');
+
   // Check if API key is set
   if (geminiApiKey) {
+    console.log('✅ API key available, showing analysis section');
     showAnalysisSection();
   } else {
+    console.log('⚠️ No API key, showing setup section');
     showSetupSection();
   }
 }
 
-// Make showAiModal globally accessible
-window.showAiModal = showAiModal;
+// Make showAiModal globally accessible with error handling
+window.showAiModal = function(errorLog) {
+  try {
+    // Call the actual showAiModal function directly to avoid recursion
+    if (!aiModal) {
+      console.error('❌ aiModal element not found');
+      return;
+    }
+
+    if (!errorLog) {
+      console.error('❌ No error log provided to AI modal');
+      return;
+    }
+
+    currentErrorLog = errorLog;
+    aiModal.style.display = 'flex';
+
+    console.log('✅ AI modal opened, checking API key status...');
+
+    // Check if API key is set
+    if (geminiApiKey) {
+      console.log('✅ API key available, showing analysis section');
+      showAnalysisSection();
+    } else {
+      console.log('⚠️ No API key, showing setup section');
+      showSetupSection();
+    }
+  } catch (error) {
+    console.error('❌ Error in showAiModal:', error);
+    console.error('Error log that caused issue:', errorLog);
+  }
+};
 
 function hideAiModal() {
+  console.log('🔒 Hiding AI modal');
   if (aiModal) {
     aiModal.style.display = 'none';
     resetAiModal();
+    console.log('✅ AI modal hidden');
+  } else {
+    console.error('❌ aiModal element not found when trying to hide');
   }
 }
 
